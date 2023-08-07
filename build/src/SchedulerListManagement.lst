@@ -1,0 +1,662 @@
+GAS LISTING /tmp/cc8rEXdE.s 			page 1
+
+
+   1              		.file	"SchedulerListManagement.cpp"
+   2              		.option pic
+   3              		.option norelax
+   4              		.text
+   5              	.Ltext0:
+   6              		.align	2
+   7              		.globl	_Z12idleFunctionPv
+   9              	_Z12idleFunctionPv:
+  10              	.LFB44:
+  11              		.file 1 "src/SchedulerListManagement.cpp"
+   1:src/SchedulerListManagement.cpp **** #include "../h/TCB.hpp"
+   2:src/SchedulerListManagement.cpp **** #include "../h/Z_Njihovo_Printing.hpp"
+   3:src/SchedulerListManagement.cpp **** 
+   4:src/SchedulerListManagement.cpp **** // ovo je telo funkcije koje ce izvrsavati idle nit (besposlena, vrti se u beskonacnoj petlji)
+   5:src/SchedulerListManagement.cpp **** // ona se daje procesoru samo onda kada nema drugih spremnih niti u scheduleru
+   6:src/SchedulerListManagement.cpp **** [[noreturn]] void idleFunction(void* arg) { while (true) { } }
+  12              		.loc 1 6 43
+  13              		.cfi_startproc
+  14              	.LVL0:
+  15 0000 130101FF 		addi	sp,sp,-16
+  16              		.cfi_def_cfa_offset 16
+  17 0004 23348100 		sd	s0,8(sp)
+  18              		.cfi_offset 8, -8
+  19 0008 13040101 		addi	s0,sp,16
+  20              		.cfi_def_cfa 8, 0
+  21              	.L2:
+  22              		.loc 1 6 45 discriminator 1
+  23              		.loc 1 6 45 discriminator 1
+  24 000c 6F000000 		j	.L2
+  25              		.cfi_endproc
+  26              	.LFE44:
+  28              		.align	2
+  29              		.globl	_Z19removeFromSchedulerRP3TCBS1_
+  31              	_Z19removeFromSchedulerRP3TCBS1_:
+  32              	.LFB45:
+   7:src/SchedulerListManagement.cpp **** 
+   8:src/SchedulerListManagement.cpp **** // uzimamo element sa pocetka ulancane liste
+   9:src/SchedulerListManagement.cpp **** TCB* removeFromScheduler(TCB*& head, TCB*& tail) {
+  33              		.loc 1 9 50
+  34              		.cfi_startproc
+  35              	.LVL1:
+  36 0010 130101FF 		addi	sp,sp,-16
+  37              		.cfi_def_cfa_offset 16
+  38 0014 23348100 		sd	s0,8(sp)
+  39              		.cfi_offset 8, -8
+  40 0018 13040101 		addi	s0,sp,16
+  41              		.cfi_def_cfa 8, 0
+  42 001c 93070500 		mv	a5,a0
+  10:src/SchedulerListManagement.cpp ****     if (!head || !tail) return nullptr; // ovaj slucaj moze da se dogodi samo ako idle nit jos nije
+  43              		.loc 1 10 5
+  44              		.loc 1 10 10 is_stmt 0
+  45 0020 03350500 		ld	a0,0(a0)
+  46              	.LVL2:
+  47              		.loc 1 10 5
+  48 0024 63020502 		beqz	a0,.L4
+  49              		.loc 1 10 19 discriminator 2
+  50 0028 03B70500 		ld	a4,0(a1)
+GAS LISTING /tmp/cc8rEXdE.s 			page 2
+
+
+  51              		.loc 1 10 15 discriminator 2
+  52 002c 63040702 		beqz	a4,.L6
+  11:src/SchedulerListManagement.cpp ****     if (head == tail) return head; // slucaj kada je u scheduleru samo idle nit - nju vracamo i ne 
+  53              		.loc 1 11 5 is_stmt 1
+  54 0030 630CE500 		beq	a0,a4,.L4
+  12:src/SchedulerListManagement.cpp ****     TCB* thread = head;
+  55              		.loc 1 12 5
+  56              	.LVL3:
+  13:src/SchedulerListManagement.cpp ****     head = head->getNextThreadScheduler();
+  57              		.loc 1 13 5
+  58              	.LBB26:
+  59              	.LBB27:
+  60              		.file 2 "src/../h/TCB.hpp"
+   1:src/../h/TCB.hpp **** #ifndef TCB_HPP
+   2:src/../h/TCB.hpp **** #define TCB_HPP
+   3:src/../h/TCB.hpp **** 
+   4:src/../h/TCB.hpp **** #include "../lib/hw.h"
+   5:src/../h/TCB.hpp **** #include "Scheduler.hpp"
+   6:src/../h/TCB.hpp **** #include "Riscv.hpp"
+   7:src/../h/TCB.hpp **** 
+   8:src/../h/TCB.hpp **** // klasa TCB predstavlja apstrakciju niti
+   9:src/../h/TCB.hpp **** class TCB {
+  10:src/../h/TCB.hpp **** public:
+  11:src/../h/TCB.hpp ****     // definisanje korisnickog tipa Body - predstavljace pokazivac na void funkciju koja prima void
+  12:src/../h/TCB.hpp ****     using Body = void (*)(void*);
+  13:src/../h/TCB.hpp **** 
+  14:src/../h/TCB.hpp ****     // ova funkcija treba da napravi novu nit koja ce da izvrsava telo funkcije date parametrom bod
+  15:src/../h/TCB.hpp ****     // ako se prosledi nullptr, to znaci da treba napraviti nit koja ce da izvrsava main funkciju
+  16:src/../h/TCB.hpp ****     // u tom slucaju, u konstrukciji te niti ne treba je davati scheduleru na raspolaganje, jer bi 
+  17:src/../h/TCB.hpp ****     // zelimo da bas ta nit main-a nastavi da se izvrsava
+  18:src/../h/TCB.hpp ****     static TCB* createThread(Body body, void* arg, void* stack, bool cppApi);
+  19:src/../h/TCB.hpp **** 
+  20:src/../h/TCB.hpp ****     // obezbedjena enkapsulacija - atribut finished je privatan i moze se citati samo kroz getter m
+  21:src/../h/TCB.hpp ****     bool getFinished() const { return finished; }
+  22:src/../h/TCB.hpp ****     void setFinished(bool value) { finished = value; }
+  23:src/../h/TCB.hpp **** 
+  24:src/../h/TCB.hpp ****     // ovaj metod vraca vremenski odsecak (kvantum) koji je dodeljen tekucem objektu klase TCB (nit
+  25:src/../h/TCB.hpp ****     // to je broj perioda tajmera - on govori koliko vremena ce se nit izvrsavati
+  26:src/../h/TCB.hpp ****     uint64 getTimeSlice() const { return timeSlice; }
+  27:src/../h/TCB.hpp **** 
+  28:src/../h/TCB.hpp ****     // ovaj metod vraca adresu funkcije koju treba da izvrsava tekuca nit
+  29:src/../h/TCB.hpp ****     Body getBody() const { return body; }
+  30:src/../h/TCB.hpp **** 
+  31:src/../h/TCB.hpp ****     // privatne atribute schedulerPrevThread i schedulerNextThread sam ispravno enkapsulirao jer su
+  32:src/../h/TCB.hpp ****     // i mogu se modifikovati samo kroz setter metode, a mogu da se procitaju samo preko getter met
+  33:src/../h/TCB.hpp ****     TCB* getPrevThreadScheduler() const { return schedulerPrevThread; }
+  34:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+  35:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  61              		.loc 2 35 43
+  62              		.loc 2 35 50 is_stmt 0
+  63 0034 03378503 		ld	a4,56(a0)
+  64              	.LVL4:
+  65              	.LBE27:
+  66              	.LBE26:
+  67              		.loc 1 13 10
+  68 0038 23B0E700 		sd	a4,0(a5)
+  14:src/SchedulerListManagement.cpp ****     thread->getNextThreadScheduler()->setPrevThreadScheduler(nullptr);
+GAS LISTING /tmp/cc8rEXdE.s 			page 3
+
+
+  69              		.loc 1 14 5 is_stmt 1
+  70              	.LVL5:
+  71              	.LBB28:
+  72              	.LBB29:
+  73              		.loc 2 35 43
+  74              		.loc 2 35 50 is_stmt 0
+  75 003c 83378503 		ld	a5,56(a0)
+  76              	.LVL6:
+  77              	.LBE29:
+  78              	.LBE28:
+  79              	.LBB30:
+  80              	.LBB31:
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  81              		.loc 2 34 46 is_stmt 1
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  82              		.loc 2 34 66 is_stmt 0
+  83 0040 23B00704 		sd	zero,64(a5)
+  84              	.LVL7:
+  85              	.LBE31:
+  86              	.LBE30:
+  15:src/SchedulerListManagement.cpp ****     thread->setNextThreadScheduler(nullptr);
+  87              		.loc 1 15 5 is_stmt 1
+  88              	.LBB32:
+  89              	.LBB33:
+  36:src/../h/TCB.hpp ****     void setNextThreadScheduler(TCB* next) { schedulerNextThread = next; }
+  90              		.loc 2 36 46
+  91              		.loc 2 36 66 is_stmt 0
+  92 0044 233C0502 		sd	zero,56(a0)
+  93              	.LVL8:
+  94              	.LBE33:
+  95              	.LBE32:
+  16:src/SchedulerListManagement.cpp ****     return thread;
+  96              		.loc 1 16 5 is_stmt 1
+  97              	.L4:
+  17:src/SchedulerListManagement.cpp **** }
+  98              		.loc 1 17 1 is_stmt 0
+  99 0048 03348100 		ld	s0,8(sp)
+ 100              		.cfi_remember_state
+ 101              		.cfi_restore 8
+ 102              		.cfi_def_cfa 2, 16
+ 103 004c 13010101 		addi	sp,sp,16
+ 104              		.cfi_def_cfa_offset 0
+ 105 0050 67800000 		jr	ra
+ 106              	.LVL9:
+ 107              	.L6:
+ 108              		.cfi_restore_state
+  10:src/SchedulerListManagement.cpp ****     if (head == tail) return head; // slucaj kada je u scheduleru samo idle nit - nju vracamo i ne 
+ 109              		.loc 1 10 32
+ 110 0054 13050700 		mv	a0,a4
+ 111 0058 6FF01FFF 		j	.L4
+ 112              		.cfi_endproc
+ 113              	.LFE45:
+ 115              		.align	2
+ 116              		.globl	_Z19insertIntoSchedulerRP3TCBS1_S0_
+ 118              	_Z19insertIntoSchedulerRP3TCBS1_S0_:
+ 119              	.LFB46:
+  18:src/SchedulerListManagement.cpp **** 
+GAS LISTING /tmp/cc8rEXdE.s 			page 4
+
+
+  19:src/SchedulerListManagement.cpp **** // umecemo u ulancanu listu; ukoliko prvi put umecemo, to je slucaj kada se umece idle nit;
+  20:src/SchedulerListManagement.cpp **** // kada budemo umetali sve naredne niti, umecemo ih tako da idle nit uvek bude poslednja;
+  21:src/SchedulerListManagement.cpp **** // idle nit se nikada ne izbacuje iz scheduler-a nakon sto se ubaci u scheduler;
+  22:src/SchedulerListManagement.cpp **** void insertIntoScheduler(TCB*& head, TCB*& tail, TCB* tcb) {
+ 120              		.loc 1 22 60 is_stmt 1
+ 121              		.cfi_startproc
+ 122              	.LVL10:
+ 123 005c 130101FF 		addi	sp,sp,-16
+ 124              		.cfi_def_cfa_offset 16
+ 125 0060 23348100 		sd	s0,8(sp)
+ 126              		.cfi_offset 8, -8
+ 127 0064 13040101 		addi	s0,sp,16
+ 128              		.cfi_def_cfa 8, 0
+  23:src/SchedulerListManagement.cpp ****     if (!tcb) return;
+ 129              		.loc 1 23 5
+ 130 0068 63040604 		beqz	a2,.L8
+  24:src/SchedulerListManagement.cpp ****     if (!head || !tail) { head = tail = tcb; return; } // ubacivanje idle niti na pocetku dok je jo
+ 131              		.loc 1 24 5
+ 132              		.loc 1 24 10 is_stmt 0
+ 133 006c 83370500 		ld	a5,0(a0)
+ 134              		.loc 1 24 5
+ 135 0070 63860704 		beqz	a5,.L10
+ 136              		.loc 1 24 19 discriminator 2
+ 137 0074 83B70500 		ld	a5,0(a1)
+ 138              		.loc 1 24 15 discriminator 2
+ 139 0078 63820704 		beqz	a5,.L10
+  25:src/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 140              		.loc 1 25 5 is_stmt 1
+ 141              	.LVL11:
+ 142              	.LBB34:
+ 143              	.LBB35:
+  29:src/../h/TCB.hpp **** 
+ 144              		.loc 2 29 28
+  29:src/../h/TCB.hpp **** 
+ 145              		.loc 2 29 35 is_stmt 0
+ 146 007c 83360600 		ld	a3,0(a2)
+ 147              	.LVL12:
+ 148              	.LBE35:
+ 149              	.LBE34:
+ 150              		.loc 1 25 5
+ 151 0080 17070000 		lla	a4,_Z12idleFunctionPv
+ 151      13070700 
+ 152 0088 6384E602 		beq	a3,a4,.L8
+  26:src/SchedulerListManagement.cpp ****     tcb->setNextThreadScheduler(tail);
+ 153              		.loc 1 26 5 is_stmt 1
+ 154              	.LVL13:
+ 155              	.LBB36:
+ 156              	.LBB37:
+ 157              		.loc 2 36 46
+ 158              		.loc 2 36 66 is_stmt 0
+ 159 008c 233CF602 		sd	a5,56(a2)
+ 160              	.LVL14:
+ 161              	.LBE37:
+ 162              	.LBE36:
+  27:src/SchedulerListManagement.cpp ****     tcb->setPrevThreadScheduler(tail->getPrevThreadScheduler());
+ 163              		.loc 1 27 5 is_stmt 1
+ 164              	.LBB38:
+GAS LISTING /tmp/cc8rEXdE.s 			page 5
+
+
+ 165              	.LBB39:
+  33:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 166              		.loc 2 33 43
+  33:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 167              		.loc 2 33 50 is_stmt 0
+ 168 0090 83B70704 		ld	a5,64(a5)
+ 169              	.LVL15:
+ 170              	.LBE39:
+ 171              	.LBE38:
+ 172              	.LBB40:
+ 173              	.LBB41:
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 174              		.loc 2 34 46 is_stmt 1
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 175              		.loc 2 34 66 is_stmt 0
+ 176 0094 2330F604 		sd	a5,64(a2)
+ 177              	.LVL16:
+ 178              	.LBE41:
+ 179              	.LBE40:
+  28:src/SchedulerListManagement.cpp ****     if (tail->getPrevThreadScheduler()) tail->getPrevThreadScheduler()->setNextThreadScheduler(tcb)
+ 180              		.loc 1 28 5 is_stmt 1
+ 181              		.loc 1 28 37 is_stmt 0
+ 182 0098 83B70500 		ld	a5,0(a1)
+ 183              	.LVL17:
+ 184              	.LBB42:
+ 185              	.LBB43:
+  33:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 186              		.loc 2 33 43 is_stmt 1
+  33:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 187              		.loc 2 33 50 is_stmt 0
+ 188 009c 83B70704 		ld	a5,64(a5)
+ 189              	.LVL18:
+ 190              	.LBE43:
+ 191              	.LBE42:
+ 192              		.loc 1 28 5
+ 193 00a0 63840702 		beqz	a5,.L12
+ 194              		.loc 1 28 41 is_stmt 1 discriminator 1
+ 195              	.LVL19:
+  33:src/../h/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 196              		.loc 2 33 43 discriminator 1
+ 197              	.LBB44:
+ 198              	.LBB45:
+ 199              		.loc 2 36 46 discriminator 1
+ 200              		.loc 2 36 66 is_stmt 0 discriminator 1
+ 201 00a4 23BCC702 		sd	a2,56(a5)
+ 202              	.LVL20:
+ 203              	.L13:
+ 204              	.LBE45:
+ 205              	.LBE44:
+  29:src/SchedulerListManagement.cpp ****     else head = tcb;
+  30:src/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 206              		.loc 1 30 5 is_stmt 1
+ 207              		.loc 1 30 33 is_stmt 0
+ 208 00a8 83B70500 		ld	a5,0(a1)
+ 209              	.LVL21:
+ 210              	.LBB46:
+ 211              	.LBB47:
+GAS LISTING /tmp/cc8rEXdE.s 			page 6
+
+
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 212              		.loc 2 34 46 is_stmt 1
+  34:src/../h/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 213              		.loc 2 34 66 is_stmt 0
+ 214 00ac 23B0C704 		sd	a2,64(a5)
+ 215              	.LVL22:
+ 216              	.L8:
+ 217              	.LBE47:
+ 218              	.LBE46:
+  31:src/SchedulerListManagement.cpp **** }
+ 219              		.loc 1 31 1
+ 220 00b0 03348100 		ld	s0,8(sp)
+ 221              		.cfi_remember_state
+ 222              		.cfi_restore 8
+ 223              		.cfi_def_cfa 2, 16
+ 224 00b4 13010101 		addi	sp,sp,16
+ 225              		.cfi_def_cfa_offset 0
+ 226 00b8 67800000 		jr	ra
+ 227              	.L10:
+ 228              		.cfi_restore_state
+  24:src/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 229              		.loc 1 24 27 is_stmt 1 discriminator 3
+  24:src/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 230              		.loc 1 24 39 is_stmt 0 discriminator 3
+ 231 00bc 23B0C500 		sd	a2,0(a1)
+  24:src/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 232              		.loc 1 24 32 discriminator 3
+ 233 00c0 2330C500 		sd	a2,0(a0)
+  24:src/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 234              		.loc 1 24 46 is_stmt 1 discriminator 3
+ 235 00c4 6FF0DFFE 		j	.L8
+ 236              	.L12:
+  29:src/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 237              		.loc 1 29 10
+  29:src/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 238              		.loc 1 29 15 is_stmt 0
+ 239 00c8 2330C500 		sd	a2,0(a0)
+ 240 00cc 6FF0DFFD 		j	.L13
+ 241              		.cfi_endproc
+ 242              	.LFE46:
+ 244              	.Letext0:
+ 245              		.file 3 "src/../h/../lib/hw.h"
+ 246              		.file 4 "src/../h/../h/syscall_c.h"
+GAS LISTING /tmp/cc8rEXdE.s 			page 7
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 SchedulerListManagement.cpp
+     /tmp/cc8rEXdE.s:9      .text:0000000000000000 _Z12idleFunctionPv
+     /tmp/cc8rEXdE.s:13     .text:0000000000000000 .L0 
+     /tmp/cc8rEXdE.s:15     .text:0000000000000000 .L0 
+     /tmp/cc8rEXdE.s:16     .text:0000000000000004 .L0 
+     /tmp/cc8rEXdE.s:18     .text:0000000000000008 .L0 
+     /tmp/cc8rEXdE.s:20     .text:000000000000000c .L0 
+     /tmp/cc8rEXdE.s:23     .text:000000000000000c .L0 
+     /tmp/cc8rEXdE.s:24     .text:000000000000000c .L0 
+     /tmp/cc8rEXdE.s:25     .text:0000000000000010 .L0 
+     /tmp/cc8rEXdE.s:31     .text:0000000000000010 _Z19removeFromSchedulerRP3TCBS1_
+     /tmp/cc8rEXdE.s:34     .text:0000000000000010 .L0 
+     /tmp/cc8rEXdE.s:36     .text:0000000000000010 .L0 
+     /tmp/cc8rEXdE.s:37     .text:0000000000000014 .L0 
+     /tmp/cc8rEXdE.s:39     .text:0000000000000018 .L0 
+     /tmp/cc8rEXdE.s:41     .text:000000000000001c .L0 
+     /tmp/cc8rEXdE.s:44     .text:0000000000000020 .L0 
+     /tmp/cc8rEXdE.s:45     .text:0000000000000020 .L0 
+     /tmp/cc8rEXdE.s:48     .text:0000000000000024 .L0 
+     /tmp/cc8rEXdE.s:50     .text:0000000000000028 .L0 
+     /tmp/cc8rEXdE.s:52     .text:000000000000002c .L0 
+     /tmp/cc8rEXdE.s:54     .text:0000000000000030 .L0 
+     /tmp/cc8rEXdE.s:57     .text:0000000000000034 .L0 
+     /tmp/cc8rEXdE.s:61     .text:0000000000000034 .L0 
+     /tmp/cc8rEXdE.s:62     .text:0000000000000034 .L0 
+     /tmp/cc8rEXdE.s:63     .text:0000000000000034 .L0 
+     /tmp/cc8rEXdE.s:68     .text:0000000000000038 .L0 
+     /tmp/cc8rEXdE.s:73     .text:000000000000003c .L0 
+     /tmp/cc8rEXdE.s:74     .text:000000000000003c .L0 
+     /tmp/cc8rEXdE.s:75     .text:000000000000003c .L0 
+     /tmp/cc8rEXdE.s:82     .text:0000000000000040 .L0 
+     /tmp/cc8rEXdE.s:83     .text:0000000000000040 .L0 
+     /tmp/cc8rEXdE.s:90     .text:0000000000000044 .L0 
+     /tmp/cc8rEXdE.s:91     .text:0000000000000044 .L0 
+     /tmp/cc8rEXdE.s:92     .text:0000000000000044 .L0 
+     /tmp/cc8rEXdE.s:98     .text:0000000000000048 .L0 
+     /tmp/cc8rEXdE.s:99     .text:0000000000000048 .L0 
+     /tmp/cc8rEXdE.s:100    .text:000000000000004c .L0 
+     /tmp/cc8rEXdE.s:101    .text:000000000000004c .L0 
+     /tmp/cc8rEXdE.s:102    .text:000000000000004c .L0 
+     /tmp/cc8rEXdE.s:104    .text:0000000000000050 .L0 
+     /tmp/cc8rEXdE.s:108    .text:0000000000000054 .L0 
+     /tmp/cc8rEXdE.s:110    .text:0000000000000054 .L0 
+     /tmp/cc8rEXdE.s:112    .text:000000000000005c .L0 
+     /tmp/cc8rEXdE.s:118    .text:000000000000005c _Z19insertIntoSchedulerRP3TCBS1_S0_
+     /tmp/cc8rEXdE.s:121    .text:000000000000005c .L0 
+     /tmp/cc8rEXdE.s:123    .text:000000000000005c .L0 
+     /tmp/cc8rEXdE.s:124    .text:0000000000000060 .L0 
+     /tmp/cc8rEXdE.s:126    .text:0000000000000064 .L0 
+     /tmp/cc8rEXdE.s:128    .text:0000000000000068 .L0 
+     /tmp/cc8rEXdE.s:130    .text:0000000000000068 .L0 
+     /tmp/cc8rEXdE.s:132    .text:000000000000006c .L0 
+     /tmp/cc8rEXdE.s:133    .text:000000000000006c .L0 
+     /tmp/cc8rEXdE.s:135    .text:0000000000000070 .L0 
+     /tmp/cc8rEXdE.s:137    .text:0000000000000074 .L0 
+     /tmp/cc8rEXdE.s:139    .text:0000000000000078 .L0 
+GAS LISTING /tmp/cc8rEXdE.s 			page 8
+
+
+     /tmp/cc8rEXdE.s:144    .text:000000000000007c .L0 
+     /tmp/cc8rEXdE.s:145    .text:000000000000007c .L0 
+     /tmp/cc8rEXdE.s:146    .text:000000000000007c .L0 
+     /tmp/cc8rEXdE.s:151    .text:0000000000000080 .L0 
+     /tmp/cc8rEXdE.s:157    .text:000000000000008c .L0 
+     /tmp/cc8rEXdE.s:158    .text:000000000000008c .L0 
+     /tmp/cc8rEXdE.s:159    .text:000000000000008c .L0 
+     /tmp/cc8rEXdE.s:166    .text:0000000000000090 .L0 
+     /tmp/cc8rEXdE.s:167    .text:0000000000000090 .L0 
+     /tmp/cc8rEXdE.s:168    .text:0000000000000090 .L0 
+     /tmp/cc8rEXdE.s:175    .text:0000000000000094 .L0 
+     /tmp/cc8rEXdE.s:176    .text:0000000000000094 .L0 
+     /tmp/cc8rEXdE.s:181    .text:0000000000000098 .L0 
+     /tmp/cc8rEXdE.s:182    .text:0000000000000098 .L0 
+     /tmp/cc8rEXdE.s:187    .text:000000000000009c .L0 
+     /tmp/cc8rEXdE.s:188    .text:000000000000009c .L0 
+     /tmp/cc8rEXdE.s:193    .text:00000000000000a0 .L0 
+     /tmp/cc8rEXdE.s:196    .text:00000000000000a4 .L0 
+     /tmp/cc8rEXdE.s:199    .text:00000000000000a4 .L0 
+     /tmp/cc8rEXdE.s:200    .text:00000000000000a4 .L0 
+     /tmp/cc8rEXdE.s:201    .text:00000000000000a4 .L0 
+     /tmp/cc8rEXdE.s:207    .text:00000000000000a8 .L0 
+     /tmp/cc8rEXdE.s:208    .text:00000000000000a8 .L0 
+     /tmp/cc8rEXdE.s:213    .text:00000000000000ac .L0 
+     /tmp/cc8rEXdE.s:214    .text:00000000000000ac .L0 
+     /tmp/cc8rEXdE.s:220    .text:00000000000000b0 .L0 
+     /tmp/cc8rEXdE.s:221    .text:00000000000000b4 .L0 
+     /tmp/cc8rEXdE.s:222    .text:00000000000000b4 .L0 
+     /tmp/cc8rEXdE.s:223    .text:00000000000000b4 .L0 
+     /tmp/cc8rEXdE.s:225    .text:00000000000000b8 .L0 
+     /tmp/cc8rEXdE.s:228    .text:00000000000000bc .L0 
+     /tmp/cc8rEXdE.s:230    .text:00000000000000bc .L0 
+     /tmp/cc8rEXdE.s:231    .text:00000000000000bc .L0 
+     /tmp/cc8rEXdE.s:233    .text:00000000000000c0 .L0 
+     /tmp/cc8rEXdE.s:235    .text:00000000000000c4 .L0 
+     /tmp/cc8rEXdE.s:238    .text:00000000000000c8 .L0 
+     /tmp/cc8rEXdE.s:239    .text:00000000000000c8 .L0 
+     /tmp/cc8rEXdE.s:241    .text:00000000000000d0 .L0 
+     /tmp/cc8rEXdE.s:247    .text:00000000000000d0 .L0 
+     /tmp/cc8rEXdE.s:151    .text:0000000000000080 .L0 
+     /tmp/cc8rEXdE.s:21     .text:000000000000000c .L2
+     /tmp/cc8rEXdE.s:97     .text:0000000000000048 .L4
+     /tmp/cc8rEXdE.s:107    .text:0000000000000054 .L6
+     /tmp/cc8rEXdE.s:216    .text:00000000000000b0 .L8
+     /tmp/cc8rEXdE.s:227    .text:00000000000000bc .L10
+     /tmp/cc8rEXdE.s:236    .text:00000000000000c8 .L12
+     /tmp/cc8rEXdE.s:203    .text:00000000000000a8 .L13
+     /tmp/cc8rEXdE.s:1314   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/cc8rEXdE.s:2426   .debug_str:0000000000000757 .LASF113
+     /tmp/cc8rEXdE.s:2318   .debug_str:0000000000000342 .LASF114
+     /tmp/cc8rEXdE.s:2432   .debug_str:000000000000083f .LASF115
+     /tmp/cc8rEXdE.s:5      .text:0000000000000000 .Ltext0
+     /tmp/cc8rEXdE.s:244    .text:00000000000000d0 .Letext0
+     /tmp/cc8rEXdE.s:2224   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/cc8rEXdE.s:2320   .debug_str:0000000000000362 .LASF0
+     /tmp/cc8rEXdE.s:2338   .debug_str:0000000000000422 .LASF1
+     /tmp/cc8rEXdE.s:2388   .debug_str:0000000000000625 .LASF2
+GAS LISTING /tmp/cc8rEXdE.s 			page 9
+
+
+     /tmp/cc8rEXdE.s:2394   .debug_str:000000000000064f .LASF4
+     /tmp/cc8rEXdE.s:2326   .debug_str:0000000000000392 .LASF3
+     /tmp/cc8rEXdE.s:2242   .debug_str:00000000000000a4 .LASF5
+     /tmp/cc8rEXdE.s:2370   .debug_str:000000000000056f .LASF6
+     /tmp/cc8rEXdE.s:2330   .debug_str:00000000000003c7 .LASF7
+     /tmp/cc8rEXdE.s:2308   .debug_str:00000000000002e1 .LASF8
+     /tmp/cc8rEXdE.s:2314   .debug_str:0000000000000310 .LASF9
+     /tmp/cc8rEXdE.s:2270   .debug_str:0000000000000197 .LASF10
+     /tmp/cc8rEXdE.s:2302   .debug_str:00000000000002c1 .LASF11
+     /tmp/cc8rEXdE.s:2278   .debug_str:00000000000001f0 .LASF12
+     /tmp/cc8rEXdE.s:2268   .debug_str:0000000000000187 .LASF13
+     /tmp/cc8rEXdE.s:2414   .debug_str:00000000000006f7 .LASF14
+     /tmp/cc8rEXdE.s:2292   .debug_str:000000000000026f .LASF15
+     /tmp/cc8rEXdE.s:2406   .debug_str:00000000000006ba .LASF16
+     /tmp/cc8rEXdE.s:2418   .debug_str:000000000000070c .LASF116
+     /tmp/cc8rEXdE.s:2412   .debug_str:00000000000006ea .LASF17
+     /tmp/cc8rEXdE.s:2382   .debug_str:00000000000005e8 .LASF19
+     /tmp/cc8rEXdE.s:2368   .debug_str:000000000000056a .LASF117
+     /tmp/cc8rEXdE.s:2358   .debug_str:0000000000000517 .LASF21
+     /tmp/cc8rEXdE.s:2354   .debug_str:00000000000004e0 .LASF23
+     /tmp/cc8rEXdE.s:2256   .debug_str:0000000000000118 .LASF18
+     /tmp/cc8rEXdE.s:2438   .debug_str:000000000000087e .LASF20
+     /tmp/cc8rEXdE.s:2340   .debug_str:0000000000000435 .LASF22
+     /tmp/cc8rEXdE.s:2442   .debug_str:000000000000089e .LASF24
+     /tmp/cc8rEXdE.s:2376   .debug_str:00000000000005ad .LASF25
+     /tmp/cc8rEXdE.s:2324   .debug_str:000000000000037f .LASF26
+     /tmp/cc8rEXdE.s:2298   .debug_str:0000000000000296 .LASF27
+     /tmp/cc8rEXdE.s:2328   .debug_str:00000000000003a4 .LASF28
+     /tmp/cc8rEXdE.s:2266   .debug_str:0000000000000170 .LASF29
+     /tmp/cc8rEXdE.s:2316   .debug_str:000000000000031e .LASF30
+     /tmp/cc8rEXdE.s:2452   .debug_str:0000000000000917 .LASF31
+     /tmp/cc8rEXdE.s:2232   .debug_str:0000000000000035 .LASF32
+     /tmp/cc8rEXdE.s:2362   .debug_str:0000000000000528 .LASF33
+     /tmp/cc8rEXdE.s:2352   .debug_str:00000000000004bc .LASF34
+     /tmp/cc8rEXdE.s:2408   .debug_str:00000000000006d0 .LASF35
+     /tmp/cc8rEXdE.s:2276   .debug_str:00000000000001d0 .LASF37
+     /tmp/cc8rEXdE.s:2254   .debug_str:0000000000000106 .LASF65
+     /tmp/cc8rEXdE.s:2228   .debug_str:0000000000000013 .LASF67
+     /tmp/cc8rEXdE.s:2444   .debug_str:00000000000008b7 .LASF36
+     /tmp/cc8rEXdE.s:2250   .debug_str:00000000000000e0 .LASF38
+     /tmp/cc8rEXdE.s:2374   .debug_str:000000000000059a .LASF39
+     /tmp/cc8rEXdE.s:2450   .debug_str:00000000000008f8 .LASF40
+     /tmp/cc8rEXdE.s:2366   .debug_str:0000000000000557 .LASF41
+     /tmp/cc8rEXdE.s:2462   .debug_str:0000000000000970 .LASF42
+     /tmp/cc8rEXdE.s:2312   .debug_str:00000000000002fd .LASF43
+     /tmp/cc8rEXdE.s:2356   .debug_str:00000000000004f8 .LASF44
+     /tmp/cc8rEXdE.s:2226   .debug_str:0000000000000000 .LASF45
+     /tmp/cc8rEXdE.s:2336   .debug_str:0000000000000402 .LASF46
+     /tmp/cc8rEXdE.s:2290   .debug_str:0000000000000262 .LASF47
+     /tmp/cc8rEXdE.s:2372   .debug_str:0000000000000582 .LASF48
+     /tmp/cc8rEXdE.s:2344   .debug_str:000000000000045b .LASF49
+     /tmp/cc8rEXdE.s:2246   .debug_str:00000000000000b0 .LASF50
+     /tmp/cc8rEXdE.s:2248   .debug_str:00000000000000c9 .LASF51
+     /tmp/cc8rEXdE.s:2380   .debug_str:00000000000005c5 .LASF52
+     /tmp/cc8rEXdE.s:2258   .debug_str:0000000000000124 .LASF53
+     /tmp/cc8rEXdE.s:2280   .debug_str:0000000000000200 .LASF54
+     /tmp/cc8rEXdE.s:2400   .debug_str:000000000000066c .LASF55
+GAS LISTING /tmp/cc8rEXdE.s 			page 10
+
+
+     /tmp/cc8rEXdE.s:2420   .debug_str:0000000000000714 .LASF56
+     /tmp/cc8rEXdE.s:2264   .debug_str:0000000000000159 .LASF57
+     /tmp/cc8rEXdE.s:2454   .debug_str:000000000000092e .LASF58
+     /tmp/cc8rEXdE.s:2456   .debug_str:0000000000000951 .LASF59
+     /tmp/cc8rEXdE.s:2334   .debug_str:00000000000003ea .LASF60
+     /tmp/cc8rEXdE.s:2460   .debug_str:0000000000000963 .LASF61
+     /tmp/cc8rEXdE.s:2310   .debug_str:00000000000002f1 .LASF62
+     /tmp/cc8rEXdE.s:2262   .debug_str:0000000000000149 .LASF63
+     /tmp/cc8rEXdE.s:2306   .debug_str:00000000000002d5 .LASF64
+     /tmp/cc8rEXdE.s:2322   .debug_str:000000000000036f .LASF66
+     /tmp/cc8rEXdE.s:2350   .debug_str:00000000000004af .LASF68
+     /tmp/cc8rEXdE.s:2404   .debug_str:00000000000006a7 .LASF69
+     /tmp/cc8rEXdE.s:2390   .debug_str:0000000000000633 .LASF70
+     /tmp/cc8rEXdE.s:2396   .debug_str:0000000000000656 .LASF71
+     /tmp/cc8rEXdE.s:2236   .debug_str:0000000000000080 .LASF72
+     /tmp/cc8rEXdE.s:2238   .debug_str:000000000000008c .LASF118
+     /tmp/cc8rEXdE.s:2428   .debug_str:000000000000081b .LASF79
+     /tmp/cc8rEXdE.s:2346   .debug_str:0000000000000468 .LASF81
+     /tmp/cc8rEXdE.s:2272   .debug_str:00000000000001a6 .LASF73
+     /tmp/cc8rEXdE.s:2364   .debug_str:000000000000053f .LASF74
+     /tmp/cc8rEXdE.s:2288   .debug_str:0000000000000259 .LASF75
+     /tmp/cc8rEXdE.s:2274   .debug_str:00000000000001bd .LASF77
+     /tmp/cc8rEXdE.s:2260   .debug_str:000000000000013b .LASF76
+     /tmp/cc8rEXdE.s:2342   .debug_str:0000000000000442 .LASF78
+     /tmp/cc8rEXdE.s:2284   .debug_str:0000000000000238 .LASF80
+     /tmp/cc8rEXdE.s:2234   .debug_str:0000000000000058 .LASF82
+     /tmp/cc8rEXdE.s:2398   .debug_str:000000000000065b .LASF91
+     /tmp/cc8rEXdE.s:2230   .debug_str:0000000000000030 .LASF83
+     /tmp/cc8rEXdE.s:2430   .debug_str:0000000000000835 .LASF84
+     /tmp/cc8rEXdE.s:2458   .debug_str:000000000000095d .LASF85
+     /tmp/cc8rEXdE.s:2436   .debug_str:0000000000000876 .LASF86
+     /tmp/cc8rEXdE.s:2416   .debug_str:0000000000000703 .LASF87
+     /tmp/cc8rEXdE.s:2434   .debug_str:0000000000000862 .LASF88
+     /tmp/cc8rEXdE.s:2386   .debug_str:0000000000000611 .LASF89
+     /tmp/cc8rEXdE.s:2296   .debug_str:000000000000028c .LASF90
+     /tmp/cc8rEXdE.s:2240   .debug_str:000000000000009a .LASF92
+     /tmp/cc8rEXdE.s:2446   .debug_str:00000000000008cd .LASF93
+     /tmp/cc8rEXdE.s:2332   .debug_str:00000000000003da .LASF94
+     /tmp/cc8rEXdE.s:2378   .debug_str:00000000000005b5 .LASF95
+     /tmp/cc8rEXdE.s:2348   .debug_str:000000000000049b .LASF96
+     /tmp/cc8rEXdE.s:2282   .debug_str:0000000000000224 .LASF97
+     /tmp/cc8rEXdE.s:2392   .debug_str:0000000000000640 .LASF98
+     /tmp/cc8rEXdE.s:2440   .debug_str:0000000000000895 .LASF99
+     /tmp/cc8rEXdE.s:2384   .debug_str:000000000000060c .LASF100
+     /tmp/cc8rEXdE.s:2300   .debug_str:00000000000002ad .LASF101
+     /tmp/cc8rEXdE.s:2402   .debug_str:0000000000000683 .LASF102
+     /tmp/cc8rEXdE.s:119    .text:000000000000005c .LFB46
+     /tmp/cc8rEXdE.s:242    .text:00000000000000d0 .LFE46
+     /tmp/cc8rEXdE.s:2410   .debug_str:00000000000006e5 .LASF103
+     /tmp/cc8rEXdE.s:2360   .debug_str:0000000000000523 .LASF104
+     /tmp/cc8rEXdE.s:142    .text:000000000000007c .LBB34
+     /tmp/cc8rEXdE.s:149    .text:0000000000000080 .LBE34
+     /tmp/cc8rEXdE.s:2061   .debug_loc:0000000000000000 .LLST8
+     /tmp/cc8rEXdE.s:155    .text:000000000000008c .LBB36
+     /tmp/cc8rEXdE.s:162    .text:0000000000000090 .LBE36
+     /tmp/cc8rEXdE.s:2068   .debug_loc:0000000000000023 .LLST9
+     /tmp/cc8rEXdE.s:2075   .debug_loc:0000000000000046 .LLST10
+GAS LISTING /tmp/cc8rEXdE.s 			page 11
+
+
+     /tmp/cc8rEXdE.s:164    .text:0000000000000090 .LBB38
+     /tmp/cc8rEXdE.s:171    .text:0000000000000094 .LBE38
+     /tmp/cc8rEXdE.s:2082   .debug_loc:0000000000000069 .LLST11
+     /tmp/cc8rEXdE.s:172    .text:0000000000000094 .LBB40
+     /tmp/cc8rEXdE.s:179    .text:0000000000000098 .LBE40
+     /tmp/cc8rEXdE.s:2089   .debug_loc:000000000000008c .LLST12
+     /tmp/cc8rEXdE.s:2096   .debug_loc:00000000000000af .LLST13
+     /tmp/cc8rEXdE.s:184    .text:000000000000009c .LBB42
+     /tmp/cc8rEXdE.s:191    .text:00000000000000a0 .LBE42
+     /tmp/cc8rEXdE.s:2103   .debug_loc:00000000000000d2 .LLST14
+     /tmp/cc8rEXdE.s:197    .text:00000000000000a4 .LBB44
+     /tmp/cc8rEXdE.s:205    .text:00000000000000a8 .LBE44
+     /tmp/cc8rEXdE.s:2110   .debug_loc:00000000000000f5 .LLST15
+     /tmp/cc8rEXdE.s:2117   .debug_loc:0000000000000118 .LLST16
+     /tmp/cc8rEXdE.s:210    .text:00000000000000ac .LBB46
+     /tmp/cc8rEXdE.s:218    .text:00000000000000b0 .LBE46
+     /tmp/cc8rEXdE.s:2124   .debug_loc:000000000000013b .LLST17
+     /tmp/cc8rEXdE.s:2131   .debug_loc:000000000000015e .LLST18
+     /tmp/cc8rEXdE.s:2422   .debug_str:0000000000000736 .LASF106
+     /tmp/cc8rEXdE.s:2448   .debug_str:00000000000008d7 .LASF108
+     /tmp/cc8rEXdE.s:32     .text:0000000000000010 .LFB45
+     /tmp/cc8rEXdE.s:113    .text:000000000000005c .LFE45
+     /tmp/cc8rEXdE.s:2138   .debug_loc:0000000000000181 .LLST0
+     /tmp/cc8rEXdE.s:2294   .debug_str:0000000000000285 .LASF105
+     /tmp/cc8rEXdE.s:2160   .debug_loc:00000000000001e0 .LLST1
+     /tmp/cc8rEXdE.s:58     .text:0000000000000034 .LBB26
+     /tmp/cc8rEXdE.s:66     .text:0000000000000038 .LBE26
+     /tmp/cc8rEXdE.s:2167   .debug_loc:0000000000000203 .LLST2
+     /tmp/cc8rEXdE.s:71     .text:000000000000003c .LBB28
+     /tmp/cc8rEXdE.s:78     .text:0000000000000040 .LBE28
+     /tmp/cc8rEXdE.s:2174   .debug_loc:0000000000000226 .LLST3
+     /tmp/cc8rEXdE.s:79     .text:0000000000000040 .LBB30
+     /tmp/cc8rEXdE.s:86     .text:0000000000000044 .LBE30
+     /tmp/cc8rEXdE.s:2181   .debug_loc:0000000000000249 .LLST4
+     /tmp/cc8rEXdE.s:2189   .debug_loc:000000000000026d .LLST5
+     /tmp/cc8rEXdE.s:88     .text:0000000000000044 .LBB32
+     /tmp/cc8rEXdE.s:95     .text:0000000000000048 .LBE32
+     /tmp/cc8rEXdE.s:2196   .debug_loc:0000000000000290 .LLST6
+     /tmp/cc8rEXdE.s:2204   .debug_loc:00000000000002b4 .LLST7
+     /tmp/cc8rEXdE.s:2424   .debug_str:000000000000074a .LASF107
+     /tmp/cc8rEXdE.s:2286   .debug_str:0000000000000246 .LASF109
+     /tmp/cc8rEXdE.s:10     .text:0000000000000000 .LFB44
+     /tmp/cc8rEXdE.s:26     .text:0000000000000010 .LFE44
+     /tmp/cc8rEXdE.s:2304   .debug_str:00000000000002d0 .LASF110
+     /tmp/cc8rEXdE.s:2244   .debug_str:00000000000000ab .LASF111
+     /tmp/cc8rEXdE.s:2252   .debug_str:0000000000000101 .LASF112
+     /tmp/cc8rEXdE.s:141    .text:000000000000007c .LVL11
+     /tmp/cc8rEXdE.s:147    .text:0000000000000080 .LVL12
+     /tmp/cc8rEXdE.s:154    .text:000000000000008c .LVL13
+     /tmp/cc8rEXdE.s:160    .text:0000000000000090 .LVL14
+     /tmp/cc8rEXdE.s:169    .text:0000000000000094 .LVL15
+     /tmp/cc8rEXdE.s:177    .text:0000000000000098 .LVL16
+     /tmp/cc8rEXdE.s:183    .text:000000000000009c .LVL17
+     /tmp/cc8rEXdE.s:189    .text:00000000000000a0 .LVL18
+     /tmp/cc8rEXdE.s:195    .text:00000000000000a4 .LVL19
+     /tmp/cc8rEXdE.s:202    .text:00000000000000a8 .LVL20
+     /tmp/cc8rEXdE.s:209    .text:00000000000000ac .LVL21
+GAS LISTING /tmp/cc8rEXdE.s 			page 12
+
+
+     /tmp/cc8rEXdE.s:215    .text:00000000000000b0 .LVL22
+     /tmp/cc8rEXdE.s:35     .text:0000000000000010 .LVL1
+     /tmp/cc8rEXdE.s:46     .text:0000000000000024 .LVL2
+     /tmp/cc8rEXdE.s:76     .text:0000000000000040 .LVL6
+     /tmp/cc8rEXdE.s:106    .text:0000000000000054 .LVL9
+     /tmp/cc8rEXdE.s:56     .text:0000000000000034 .LVL3
+     /tmp/cc8rEXdE.s:93     .text:0000000000000048 .LVL8
+     /tmp/cc8rEXdE.s:64     .text:0000000000000038 .LVL4
+     /tmp/cc8rEXdE.s:70     .text:000000000000003c .LVL5
+     /tmp/cc8rEXdE.s:84     .text:0000000000000044 .LVL7
+     /tmp/cc8rEXdE.s:248    .debug_info:0000000000000000 .Ldebug_info0
+
+NO UNDEFINED SYMBOLS

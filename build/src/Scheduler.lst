@@ -1,0 +1,232 @@
+GAS LISTING /tmp/ccfhlxHk.s 			page 1
+
+
+   1              		.file	"Scheduler.cpp"
+   2              		.option pic
+   3              		.option norelax
+   4              		.text
+   5              	.Ltext0:
+   6              		.align	2
+   7              		.globl	_ZN9Scheduler11getInstanceEv
+   9              	_ZN9Scheduler11getInstanceEv:
+  10              	.LFB0:
+  11              		.file 1 "src/Scheduler.cpp"
+   1:src/Scheduler.cpp **** #include "../h/Scheduler.hpp"
+   2:src/Scheduler.cpp **** 
+   3:src/Scheduler.cpp **** Scheduler& Scheduler::getInstance() {
+  12              		.loc 1 3 37
+  13              		.cfi_startproc
+  14 0000 130101FF 		addi	sp,sp,-16
+  15              		.cfi_def_cfa_offset 16
+  16 0004 23348100 		sd	s0,8(sp)
+  17              		.cfi_offset 8, -8
+  18 0008 13040101 		addi	s0,sp,16
+  19              		.cfi_def_cfa 8, 0
+   4:src/Scheduler.cpp ****     static Scheduler scheduler;
+  20              		.loc 1 4 5
+   5:src/Scheduler.cpp ****     return scheduler;
+  21              		.loc 1 5 5
+   6:src/Scheduler.cpp **** }
+  22              		.loc 1 6 1 is_stmt 0
+  23 000c 17050000 		lla	a0,.LANCHOR0
+  23      13050500 
+  24 0014 03348100 		ld	s0,8(sp)
+  25              		.cfi_restore 8
+  26              		.cfi_def_cfa 2, 16
+  27 0018 13010101 		addi	sp,sp,16
+  28              		.cfi_def_cfa_offset 0
+  29 001c 67800000 		jr	ra
+  30              		.cfi_endproc
+  31              	.LFE0:
+  33              		.align	2
+  34              		.globl	_ZN9Scheduler3getEv
+  36              	_ZN9Scheduler3getEv:
+  37              	.LFB4:
+   7:src/Scheduler.cpp **** 
+   8:src/Scheduler.cpp **** // uzima se nit sa pocetka ulancane liste schedulera i daje se procesoru
+   9:src/Scheduler.cpp **** // u slucaju da takve niti nema, onda se procesoru daje nit koja izvrsava funkciju idleFunction (be
+  10:src/Scheduler.cpp **** TCB* Scheduler::get() {
+  38              		.loc 1 10 23 is_stmt 1
+  39              		.cfi_startproc
+  40              	.LVL0:
+  41 0020 130101FF 		addi	sp,sp,-16
+  42              		.cfi_def_cfa_offset 16
+  43 0024 23341100 		sd	ra,8(sp)
+  44 0028 23308100 		sd	s0,0(sp)
+  45              		.cfi_offset 1, -8
+  46              		.cfi_offset 8, -16
+  47 002c 13040101 		addi	s0,sp,16
+  48              		.cfi_def_cfa 8, 0
+  11:src/Scheduler.cpp ****     return removeFromScheduler(schedulerHead, scheduletTail);
+GAS LISTING /tmp/ccfhlxHk.s 			page 2
+
+
+  49              		.loc 1 11 5
+  50              		.loc 1 11 31 is_stmt 0
+  51 0030 93058500 		addi	a1,a0,8
+  52 0034 97000000 		call	_Z19removeFromSchedulerRP3TCBS1_@plt
+  52      E7800000 
+  53              	.LVL1:
+  12:src/Scheduler.cpp **** }
+  54              		.loc 1 12 1
+  55 003c 83308100 		ld	ra,8(sp)
+  56              		.cfi_restore 1
+  57 0040 03340100 		ld	s0,0(sp)
+  58              		.cfi_restore 8
+  59              		.cfi_def_cfa 2, 16
+  60 0044 13010101 		addi	sp,sp,16
+  61              		.cfi_def_cfa_offset 0
+  62 0048 67800000 		jr	ra
+  63              		.cfi_endproc
+  64              	.LFE4:
+  66              		.align	2
+  67              		.globl	_ZN9Scheduler3putEP3TCB
+  69              	_ZN9Scheduler3putEP3TCB:
+  70              	.LFB5:
+  13:src/Scheduler.cpp **** 
+  14:src/Scheduler.cpp **** // nova nit se smesta na kraj ulancane liste schedulera
+  15:src/Scheduler.cpp **** void Scheduler::put(TCB* tcb) {
+  71              		.loc 1 15 31 is_stmt 1
+  72              		.cfi_startproc
+  73              	.LVL2:
+  74 004c 130101FF 		addi	sp,sp,-16
+  75              		.cfi_def_cfa_offset 16
+  76 0050 23341100 		sd	ra,8(sp)
+  77 0054 23308100 		sd	s0,0(sp)
+  78              		.cfi_offset 1, -8
+  79              		.cfi_offset 8, -16
+  80 0058 13040101 		addi	s0,sp,16
+  81              		.cfi_def_cfa 8, 0
+  82 005c 13860500 		mv	a2,a1
+  16:src/Scheduler.cpp ****     insertIntoScheduler(schedulerHead, scheduletTail, tcb);
+  83              		.loc 1 16 5
+  84              		.loc 1 16 24 is_stmt 0
+  85 0060 93058500 		addi	a1,a0,8
+  86              	.LVL3:
+  87 0064 97000000 		call	_Z19insertIntoSchedulerRP3TCBS1_S0_@plt
+  87      E7800000 
+  88              	.LVL4:
+  17:src/Scheduler.cpp **** }...
+  89              		.loc 1 17 1
+  90 006c 83308100 		ld	ra,8(sp)
+  91              		.cfi_restore 1
+  92 0070 03340100 		ld	s0,0(sp)
+  93              		.cfi_restore 8
+  94              		.cfi_def_cfa 2, 16
+  95 0074 13010101 		addi	sp,sp,16
+  96              		.cfi_def_cfa_offset 0
+  97 0078 67800000 		jr	ra
+  98              		.cfi_endproc
+  99              	.LFE5:
+GAS LISTING /tmp/ccfhlxHk.s 			page 3
+
+
+ 101              		.bss
+ 102              		.align	3
+ 103              		.set	.LANCHOR0,. + 0
+ 106              	_ZZN9Scheduler11getInstanceEvE9scheduler:
+ 107 0000 00000000 		.zero	16
+ 107      00000000 
+ 107      00000000 
+ 107      00000000 
+ 108              		.text
+ 109              	.Letext0:
+ 110              		.file 2 "src/../h/Scheduler.hpp"
+GAS LISTING /tmp/ccfhlxHk.s 			page 4
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 Scheduler.cpp
+     /tmp/ccfhlxHk.s:9      .text:0000000000000000 _ZN9Scheduler11getInstanceEv
+     /tmp/ccfhlxHk.s:13     .text:0000000000000000 .L0 
+     /tmp/ccfhlxHk.s:14     .text:0000000000000000 .L0 
+     /tmp/ccfhlxHk.s:15     .text:0000000000000004 .L0 
+     /tmp/ccfhlxHk.s:17     .text:0000000000000008 .L0 
+     /tmp/ccfhlxHk.s:19     .text:000000000000000c .L0 
+     /tmp/ccfhlxHk.s:21     .text:000000000000000c .L0 
+     /tmp/ccfhlxHk.s:22     .text:000000000000000c .L0 
+     /tmp/ccfhlxHk.s:23     .text:000000000000000c .L0 
+     /tmp/ccfhlxHk.s:25     .text:0000000000000018 .L0 
+     /tmp/ccfhlxHk.s:26     .text:0000000000000018 .L0 
+     /tmp/ccfhlxHk.s:28     .text:000000000000001c .L0 
+     /tmp/ccfhlxHk.s:30     .text:0000000000000020 .L0 
+     /tmp/ccfhlxHk.s:36     .text:0000000000000020 _ZN9Scheduler3getEv
+     /tmp/ccfhlxHk.s:39     .text:0000000000000020 .L0 
+     /tmp/ccfhlxHk.s:41     .text:0000000000000020 .L0 
+     /tmp/ccfhlxHk.s:42     .text:0000000000000024 .L0 
+     /tmp/ccfhlxHk.s:45     .text:000000000000002c .L0 
+     /tmp/ccfhlxHk.s:46     .text:000000000000002c .L0 
+     /tmp/ccfhlxHk.s:48     .text:0000000000000030 .L0 
+     /tmp/ccfhlxHk.s:50     .text:0000000000000030 .L0 
+     /tmp/ccfhlxHk.s:51     .text:0000000000000030 .L0 
+     /tmp/ccfhlxHk.s:55     .text:000000000000003c .L0 
+     /tmp/ccfhlxHk.s:56     .text:0000000000000040 .L0 
+     /tmp/ccfhlxHk.s:58     .text:0000000000000044 .L0 
+     /tmp/ccfhlxHk.s:59     .text:0000000000000044 .L0 
+     /tmp/ccfhlxHk.s:61     .text:0000000000000048 .L0 
+     /tmp/ccfhlxHk.s:63     .text:000000000000004c .L0 
+     /tmp/ccfhlxHk.s:69     .text:000000000000004c _ZN9Scheduler3putEP3TCB
+     /tmp/ccfhlxHk.s:72     .text:000000000000004c .L0 
+     /tmp/ccfhlxHk.s:74     .text:000000000000004c .L0 
+     /tmp/ccfhlxHk.s:75     .text:0000000000000050 .L0 
+     /tmp/ccfhlxHk.s:78     .text:0000000000000058 .L0 
+     /tmp/ccfhlxHk.s:79     .text:0000000000000058 .L0 
+     /tmp/ccfhlxHk.s:81     .text:000000000000005c .L0 
+     /tmp/ccfhlxHk.s:84     .text:0000000000000060 .L0 
+     /tmp/ccfhlxHk.s:85     .text:0000000000000060 .L0 
+     /tmp/ccfhlxHk.s:90     .text:000000000000006c .L0 
+     /tmp/ccfhlxHk.s:91     .text:0000000000000070 .L0 
+     /tmp/ccfhlxHk.s:93     .text:0000000000000074 .L0 
+     /tmp/ccfhlxHk.s:94     .text:0000000000000074 .L0 
+     /tmp/ccfhlxHk.s:96     .text:0000000000000078 .L0 
+     /tmp/ccfhlxHk.s:98     .text:000000000000007c .L0 
+     /tmp/ccfhlxHk.s:103    .bss:0000000000000000 .LANCHOR0
+     /tmp/ccfhlxHk.s:106    .bss:0000000000000000 _ZZN9Scheduler11getInstanceEvE9scheduler
+     /tmp/ccfhlxHk.s:111    .text:000000000000007c .L0 
+     /tmp/ccfhlxHk.s:23     .text:000000000000000c .L0 
+     /tmp/ccfhlxHk.s:360    .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/ccfhlxHk.s:795    .debug_str:0000000000000058 .LASF11
+     /tmp/ccfhlxHk.s:813    .debug_str:00000000000001a8 .LASF12
+     /tmp/ccfhlxHk.s:815    .debug_str:00000000000001ba .LASF13
+     /tmp/ccfhlxHk.s:5      .text:0000000000000000 .Ltext0
+     /tmp/ccfhlxHk.s:109    .text:000000000000007c .Letext0
+     /tmp/ccfhlxHk.s:785    .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/ccfhlxHk.s:805    .debug_str:0000000000000177 .LASF0
+GAS LISTING /tmp/ccfhlxHk.s 			page 5
+
+
+     /tmp/ccfhlxHk.s:797    .debug_str:000000000000011c .LASF14
+     /tmp/ccfhlxHk.s:791    .debug_str:0000000000000029 .LASF15
+     /tmp/ccfhlxHk.s:817    .debug_str:00000000000001dd .LASF2
+     /tmp/ccfhlxHk.s:801    .debug_str:000000000000014c .LASF1
+     /tmp/ccfhlxHk.s:789    .debug_str:0000000000000014 .LASF3
+     /tmp/ccfhlxHk.s:809    .debug_str:0000000000000186 .LASF16
+     /tmp/ccfhlxHk.s:823    .debug_str:0000000000000214 .LASF17
+     /tmp/ccfhlxHk.s:793    .debug_str:0000000000000046 .LASF18
+     /tmp/ccfhlxHk.s:821    .debug_str:0000000000000206 .LASF4
+     /tmp/ccfhlxHk.s:811    .debug_str:000000000000019a .LASF5
+     /tmp/ccfhlxHk.s:70     .text:000000000000004c .LFB5
+     /tmp/ccfhlxHk.s:99     .text:000000000000007c .LFE5
+     /tmp/ccfhlxHk.s:807    .debug_str:0000000000000181 .LASF6
+     /tmp/ccfhlxHk.s:726    .debug_loc:0000000000000000 .LLST1
+     /tmp/ccfhlxHk.s:740    .debug_loc:0000000000000039 .LLST2
+     /tmp/ccfhlxHk.s:88     .text:000000000000006c .LVL4
+     /tmp/ccfhlxHk.s:37     .text:0000000000000020 .LFB4
+     /tmp/ccfhlxHk.s:64     .text:000000000000004c .LFE4
+     /tmp/ccfhlxHk.s:758    .debug_loc:0000000000000085 .LLST0
+     /tmp/ccfhlxHk.s:53     .text:000000000000003c .LVL1
+     /tmp/ccfhlxHk.s:10     .text:0000000000000000 .LFB0
+     /tmp/ccfhlxHk.s:31     .text:0000000000000020 .LFE0
+     /tmp/ccfhlxHk.s:825    .debug_str:000000000000022c .LASF19
+     /tmp/ccfhlxHk.s:799    .debug_str:0000000000000128 .LASF7
+     /tmp/ccfhlxHk.s:819    .debug_str:00000000000001f2 .LASF9
+     /tmp/ccfhlxHk.s:803    .debug_str:0000000000000156 .LASF8
+     /tmp/ccfhlxHk.s:787    .debug_str:0000000000000000 .LASF10
+     /tmp/ccfhlxHk.s:73     .text:000000000000004c .LVL2
+     /tmp/ccfhlxHk.s:86     .text:0000000000000064 .LVL3
+     /tmp/ccfhlxHk.s:40     .text:0000000000000020 .LVL0
+     /tmp/ccfhlxHk.s:112    .debug_info:0000000000000000 .Ldebug_info0
+
+UNDEFINED SYMBOLS
+_Z19removeFromSchedulerRP3TCBS1_
+_Z19insertIntoSchedulerRP3TCBS1_S0_
