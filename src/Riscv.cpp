@@ -240,7 +240,7 @@ void Riscv::handleSupervisorTrap() {
         maskClearBitsSip(SIP_SSIP); // brise se zahtev za prekidom od tajmera
         TCB::updateSleepThreadList(); // azuriranje liste uspavanih niti
         TCB::timeSliceCounter++; // povecava se brojac perioda tajmera za tekucu nit (runningThread)
-        // ako se tekuca nit se izvrsavala dovoljno perioda tajmera - promeniti kontekst
+        // ako se tekuca nit izvrsavala dovoljno perioda tajmera - promeniti kontekst
         if (TCB::timeSliceCounter >= TCB::runningThread->getTimeSlice()) {
             uint64 volatile sepc = readSepc();
             uint64 volatile sstatus = readSstatus();
