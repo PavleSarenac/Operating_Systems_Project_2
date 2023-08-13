@@ -69,7 +69,7 @@ int Semaphore::signal() {
 }
 
 void PeriodicThread::run() {
-    while (true && !shouldThisThreadEnd) {
+    while (!shouldThisThreadEnd) {
         periodicActivation();
         time_sleep(sleepTime);
     }

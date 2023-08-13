@@ -2,17 +2,16 @@
 #define CONSUMER_PRODUCER_CPP_API_TEST_HPP
 
 #include "../../Code/SystemCalls/syscall_cpp.hpp"
-
 #include "Buffer_CPP_API.hpp"
 #include "Printing.hpp"
 
-namespace ConsumerProducerCPP {
+namespace ConsumerProducerAsyncCPP {
 
     Semaphore *waitForAll;
 
     struct thread_data {
         int id;
-        BufferCPP *buffer;
+        BufferTestCPP::BufferCPP *buffer;
         Semaphore *sem;
     };
 
@@ -82,7 +81,7 @@ namespace ConsumerProducerCPP {
         }
     };
 
-    void testConsumerProducer() {
+    void Consumer_Producer_Async_CPP_API_Test() {
         char input[30];
         int n, threadNum;
 
@@ -106,7 +105,7 @@ namespace ConsumerProducerCPP {
             return;
         }
 
-        BufferCPP *buffer = new BufferCPP(n);
+        BufferTestCPP::BufferCPP *buffer = new BufferTestCPP::BufferCPP(n);
 
         waitForAll = new Semaphore(0);
         Thread *producers[threadNum];

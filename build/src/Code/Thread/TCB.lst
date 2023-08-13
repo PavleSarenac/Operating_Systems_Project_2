@@ -1,0 +1,2704 @@
+GAS LISTING /tmp/ccvQ3S00.s 			page 1
+
+
+   1              		.file	"TCB.cpp"
+   2              		.option pic
+   3              		.option norelax
+   4              		.text
+   5              	.Ltext0:
+   6              		.align	2
+   7              		.globl	_ZN3TCB13threadWrapperEv
+   9              	_ZN3TCB13threadWrapperEv:
+  10              	.LFB60:
+  11              		.file 1 "src/Code/Thread/TCB.cpp"
+   1:src/Code/Thread/TCB.cpp **** #include "../../../h/Code/Thread/TCB.hpp"
+   2:src/Code/Thread/TCB.cpp **** #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
+   3:src/Code/Thread/TCB.cpp **** #include "../../../h/Code/SystemCalls/syscall_c.h"
+   4:src/Code/Thread/TCB.cpp **** 
+   5:src/Code/Thread/TCB.cpp **** int TCB::staticThreadId = 0;
+   6:src/Code/Thread/TCB.cpp **** 
+   7:src/Code/Thread/TCB.cpp **** // runningThread je pokazivac na nit koja se trenutno izvrsava (na pocetku cemo je u main-u postavi
+   8:src/Code/Thread/TCB.cpp **** TCB* TCB::runningThread = nullptr;
+   9:src/Code/Thread/TCB.cpp **** 
+  10:src/Code/Thread/TCB.cpp **** // promenljiva timeSliceCounter broji koliko perioda tajmera se trenutno izvrsava tekuca nit (ona n
+  11:src/Code/Thread/TCB.cpp **** // kada timeSliceCounter dodje do vrednosti atributa timeSlice (vremenski odsecak, tj. kvantum koji
+  12:src/Code/Thread/TCB.cpp **** // onda treba uraditi promenu tekuce niti i konteksta
+  13:src/Code/Thread/TCB.cpp **** uint64 TCB::timeSliceCounter = 0;
+  14:src/Code/Thread/TCB.cpp **** 
+  15:src/Code/Thread/TCB.cpp **** TCB* TCB::sleepHead = nullptr;
+  16:src/Code/Thread/TCB.cpp **** TCB* TCB::sleepTail = nullptr;
+  17:src/Code/Thread/TCB.cpp **** 
+  18:src/Code/Thread/TCB.cpp **** TCB* TCB::createThread(Body body, void* arg, void* stack, bool cppApi) {
+  19:src/Code/Thread/TCB.cpp ****     if (cppApi) {
+  20:src/Code/Thread/TCB.cpp ****         return new TCB(body, arg, stack, cppApi);
+  21:src/Code/Thread/TCB.cpp ****     } else {
+  22:src/Code/Thread/TCB.cpp ****         return new TCB(body, arg, stack);
+  23:src/Code/Thread/TCB.cpp ****     }
+  24:src/Code/Thread/TCB.cpp **** }
+  25:src/Code/Thread/TCB.cpp **** 
+  26:src/Code/Thread/TCB.cpp **** void TCB::insertSleepThread(uint64 time) {
+  27:src/Code/Thread/TCB.cpp ****     if (!sleepHead || !sleepTail) {
+  28:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+  29:src/Code/Thread/TCB.cpp ****         runningThread->setSleepTime(time); // prvi element liste uspavanih niti ce pamtiti pravi br
+  30:src/Code/Thread/TCB.cpp ****         return;
+  31:src/Code/Thread/TCB.cpp ****     }
+  32:src/Code/Thread/TCB.cpp ****     uint64 currSumOfSleepTimes = 0;
+  33:src/Code/Thread/TCB.cpp ****     for (TCB* curr = sleepHead; curr; curr = curr->getNextSleepThread()) {
+  34:src/Code/Thread/TCB.cpp ****         currSumOfSleepTimes += curr->getSleepTime();
+  35:src/Code/Thread/TCB.cpp ****         if (time < currSumOfSleepTimes) {
+  36:src/Code/Thread/TCB.cpp ****             runningThread->setNextSleepThread(curr);
+  37:src/Code/Thread/TCB.cpp ****             runningThread->setPrevSleepThread(curr->getPrevSleepThread());
+  38:src/Code/Thread/TCB.cpp ****             if (!curr->getPrevSleepThread()) {
+  39:src/Code/Thread/TCB.cpp ****                 // umetanje tekuce niti (runningThread) na pocetak liste uspavanih niti
+  40:src/Code/Thread/TCB.cpp ****                 runningThread->setSleepTime(time);
+  41:src/Code/Thread/TCB.cpp ****                 curr->setSleepTime(currSumOfSleepTimes - time);
+  42:src/Code/Thread/TCB.cpp ****                 sleepHead = runningThread;
+  43:src/Code/Thread/TCB.cpp ****             } else {
+  44:src/Code/Thread/TCB.cpp ****                 // umetanje tekuce niti (runningThread) negde unutar liste (NIJE UMETANJE ni na poc
+  45:src/Code/Thread/TCB.cpp ****                 curr->getPrevSleepThread()->setNextSleepThread(runningThread);
+  46:src/Code/Thread/TCB.cpp ****                 runningThread->setSleepTime(time - (currSumOfSleepTimes - curr->getSleepTime()));
+  47:src/Code/Thread/TCB.cpp ****             }
+GAS LISTING /tmp/ccvQ3S00.s 			page 2
+
+
+  48:src/Code/Thread/TCB.cpp ****             curr->setPrevSleepThread(runningThread);
+  49:src/Code/Thread/TCB.cpp ****             return;
+  50:src/Code/Thread/TCB.cpp ****         }
+  51:src/Code/Thread/TCB.cpp ****     }
+  52:src/Code/Thread/TCB.cpp ****     // umetanje tekuce niti (runningThread) na kraj liste uspavanih niti
+  53:src/Code/Thread/TCB.cpp ****     runningThread->setPrevSleepThread(sleepTail);
+  54:src/Code/Thread/TCB.cpp ****     sleepTail->setNextSleepThread(runningThread);
+  55:src/Code/Thread/TCB.cpp ****     runningThread->setSleepTime(time - currSumOfSleepTimes);
+  56:src/Code/Thread/TCB.cpp ****     sleepTail = runningThread;
+  57:src/Code/Thread/TCB.cpp **** }
+  58:src/Code/Thread/TCB.cpp **** 
+  59:src/Code/Thread/TCB.cpp **** void TCB::updateSleepThreadList() {
+  60:src/Code/Thread/TCB.cpp ****     if (!sleepHead || !sleepTail) return;
+  61:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+  62:src/Code/Thread/TCB.cpp ****     TCB* curr = sleepHead;
+  63:src/Code/Thread/TCB.cpp ****     // budjenje niti kojima je sleepTime dostigao vrednost nula
+  64:src/Code/Thread/TCB.cpp ****     while (curr && curr->getSleepTime() == 0) {
+  65:src/Code/Thread/TCB.cpp ****         TCB* oldCurr = curr;
+  66:src/Code/Thread/TCB.cpp ****         curr = curr->getNextSleepThread();
+  67:src/Code/Thread/TCB.cpp ****         sleepHead = curr;
+  68:src/Code/Thread/TCB.cpp ****         if (curr) curr->setPrevSleepThread(nullptr);
+  69:src/Code/Thread/TCB.cpp ****         oldCurr->setNextSleepThread(nullptr);
+  70:src/Code/Thread/TCB.cpp ****         Scheduler::getInstance().put(oldCurr);
+  71:src/Code/Thread/TCB.cpp ****     }
+  72:src/Code/Thread/TCB.cpp ****     // slucaj kada se ispraznila lista uspavanih niti
+  73:src/Code/Thread/TCB.cpp ****     if (!curr) sleepHead = sleepTail = nullptr;
+  74:src/Code/Thread/TCB.cpp **** }
+  75:src/Code/Thread/TCB.cpp **** 
+  76:src/Code/Thread/TCB.cpp **** void* TCB::operator new(size_t n) {
+  77:src/Code/Thread/TCB.cpp ****     void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
+  78:src/Code/Thread/TCB.cpp ****     return ptr;
+  79:src/Code/Thread/TCB.cpp **** }
+  80:src/Code/Thread/TCB.cpp **** 
+  81:src/Code/Thread/TCB.cpp **** void* TCB::operator new[](size_t n) {
+  82:src/Code/Thread/TCB.cpp ****     void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
+  83:src/Code/Thread/TCB.cpp ****     return ptr;
+  84:src/Code/Thread/TCB.cpp **** }
+  85:src/Code/Thread/TCB.cpp **** 
+  86:src/Code/Thread/TCB.cpp **** void TCB::operator delete(void *ptr) {
+  87:src/Code/Thread/TCB.cpp ****     MemoryAllocator::getInstance().deallocateSegment(ptr);
+  88:src/Code/Thread/TCB.cpp **** }
+  89:src/Code/Thread/TCB.cpp **** 
+  90:src/Code/Thread/TCB.cpp **** void TCB::operator delete[](void *ptr) {
+  91:src/Code/Thread/TCB.cpp ****     MemoryAllocator::getInstance().deallocateSegment(ptr);
+  92:src/Code/Thread/TCB.cpp **** }
+  93:src/Code/Thread/TCB.cpp **** 
+  94:src/Code/Thread/TCB.cpp **** void TCB::initializeClassAttributes(TCB* thisPointer, Body body, void* arg, void* stack) {
+  95:src/Code/Thread/TCB.cpp ****     thisPointer->body = body;
+  96:src/Code/Thread/TCB.cpp ****     thisPointer->arg = arg;
+  97:src/Code/Thread/TCB.cpp ****     thisPointer->stack = static_cast<uint64*>(stack);
+  98:src/Code/Thread/TCB.cpp ****     // u polju ra strukture context cuvamo adresu na koju bi trebalo da skoci nit;
+  99:src/Code/Thread/TCB.cpp ****     // u konstruktoru podmecemo adresu staticke metode threadWrapper jer zelimo da se
+ 100:src/Code/Thread/TCB.cpp ****     // ona prva izvrsi za svaku novonapravljenu nit
+ 101:src/Code/Thread/TCB.cpp ****     thisPointer->context.ra = reinterpret_cast<uint64>(&threadWrapper);
+ 102:src/Code/Thread/TCB.cpp ****     // sp se postavlja na vrh steka; posto sp pokazuje na poslednju zauzetu lokaciju, a na pocetku 
+ 103:src/Code/Thread/TCB.cpp ****     // postavili smo ga na jednu adresu iznad prve u koju sme da se stavi nesto na stek;
+ 104:src/Code/Thread/TCB.cpp ****     // stek zauzima DEFAULT_STACK_SIZE (4096) bajtova, dakle ima mesta za 512 vrednosti velicine si
+GAS LISTING /tmp/ccvQ3S00.s 			page 3
+
+
+ 105:src/Code/Thread/TCB.cpp ****     // to znaci da niz na koji pokazuje uint64* stack ima 512 elemenata - zato sam ispod kod indeks
+ 106:src/Code/Thread/TCB.cpp ****     // da bih pristupio adresi koja je za jedan iznad poslednje adrese koju zauzima stek
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->context.sp = stack ? reinterpret_cast<uint64>(&static_cast<uint64*>(stack)[DEFAULT
+ 108:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 109:src/Code/Thread/TCB.cpp ****     thisPointer->threadId = TCB::staticThreadId++;
+ 110:src/Code/Thread/TCB.cpp **** }
+ 111:src/Code/Thread/TCB.cpp **** 
+ 112:src/Code/Thread/TCB.cpp **** TCB::TCB(Body body, void* arg, void* stack) {
+ 113:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 114:src/Code/Thread/TCB.cpp **** 
+ 115:src/Code/Thread/TCB.cpp ****     // ako je body nullptr, to znaci da se kreira nit nad main-om i zelimo tada da main nastavi
+ 116:src/Code/Thread/TCB.cpp ****     // da se izvrsava, zato ga ne dajemo scheduleru jer bi ga to suspendovalo; u suprotnom, stavlja
+ 117:src/Code/Thread/TCB.cpp ****     // nit u scheduler
+ 118:src/Code/Thread/TCB.cpp ****     if (body) Scheduler::getInstance().put(this);
+ 119:src/Code/Thread/TCB.cpp **** }
+ 120:src/Code/Thread/TCB.cpp **** 
+ 121:src/Code/Thread/TCB.cpp **** TCB::TCB(Body body, void* arg, void* stack, bool cppApi) {
+ 122:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 123:src/Code/Thread/TCB.cpp **** }
+ 124:src/Code/Thread/TCB.cpp **** 
+ 125:src/Code/Thread/TCB.cpp **** // promena konteksta
+ 126:src/Code/Thread/TCB.cpp **** void TCB::dispatch() {
+ 127:src/Code/Thread/TCB.cpp ****     TCB* oldThread = runningThread;
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+ 129:src/Code/Thread/TCB.cpp ****     runningThread = Scheduler::getInstance().get();
+ 130:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &runningThread->context);
+ 131:src/Code/Thread/TCB.cpp ****     // cak iako je oldThread ugasena i dealocirana, nije problem uraditi contextSwitch, tj. upisati
+ 132:src/Code/Thread/TCB.cpp ****     // je dealociran jer to nece narusiti nista (jer je ta memorija slobodna i nebitno nam je sta p
+ 133:src/Code/Thread/TCB.cpp ****     // kontekst posto je ta nit ugasena i nece se vise nikada izvrsavati
+ 134:src/Code/Thread/TCB.cpp **** }
+ 135:src/Code/Thread/TCB.cpp **** 
+ 136:src/Code/Thread/TCB.cpp **** void TCB::suspendCurrentThread() {
+ 137:src/Code/Thread/TCB.cpp ****     TCB* oldThread = TCB::runningThread;
+ 138:src/Code/Thread/TCB.cpp ****     TCB::runningThread = Scheduler::getInstance().get();
+ 139:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &TCB::runningThread->context);
+ 140:src/Code/Thread/TCB.cpp **** }
+ 141:src/Code/Thread/TCB.cpp **** 
+ 142:src/Code/Thread/TCB.cpp **** void TCB::threadWrapper() {
+  12              		.loc 1 142 27
+  13              		.cfi_startproc
+  14 0000 130101FE 		addi	sp,sp,-32
+  15              		.cfi_def_cfa_offset 32
+  16 0004 233C1100 		sd	ra,24(sp)
+  17 0008 23388100 		sd	s0,16(sp)
+  18 000c 23349100 		sd	s1,8(sp)
+  19              		.cfi_offset 1, -8
+  20              		.cfi_offset 8, -16
+  21              		.cfi_offset 9, -24
+  22 0010 13040102 		addi	s0,sp,32
+  23              		.cfi_def_cfa 8, 0
+ 143:src/Code/Thread/TCB.cpp ****     Riscv::exitSupervisorTrap();
+  24              		.loc 1 143 5
+  25              		.loc 1 143 30 is_stmt 0
+  26 0014 97000000 		call	_ZN5Riscv18exitSupervisorTrapEv@plt
+  26      E7800000 
+  27              	.LVL0:
+ 144:src/Code/Thread/TCB.cpp ****     switchSupervisorToUser();
+GAS LISTING /tmp/ccvQ3S00.s 			page 4
+
+
+  28              		.loc 1 144 5 is_stmt 1
+  29              		.loc 1 144 27 is_stmt 0
+  30 001c 97000000 		call	_Z22switchSupervisorToUserv@plt
+  30      E7800000 
+  31              	.LVL1:
+ 145:src/Code/Thread/TCB.cpp ****     runningThread->body(runningThread->arg);
+  32              		.loc 1 145 5 is_stmt 1
+  33              		.loc 1 145 20 is_stmt 0
+  34 0024 97040000 		lla	s1,.LANCHOR0
+  34      93840400 
+  35 002c 83B70400 		ld	a5,0(s1)
+  36 0030 03B70700 		ld	a4,0(a5)
+  37              		.loc 1 145 24
+  38 0034 03B58700 		ld	a0,8(a5)
+  39 0038 E7000700 		jalr	a4
+  40              	.LVL2:
+ 146:src/Code/Thread/TCB.cpp ****     if (!runningThread->getFinished()) {
+  41              		.loc 1 146 5 is_stmt 1
+  42              		.loc 1 146 36 is_stmt 0
+  43 003c 83B70400 		ld	a5,0(s1)
+  44              	.LVL3:
+  45              	.LBB54:
+  46              	.LBB55:
+  47              		.file 2 "src/Code/Thread/../../../h/Code/Thread/TCB.hpp"
+   1:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** #ifndef TCB_HPP
+   2:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** #define TCB_HPP
+   3:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+   4:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** #include "../../../lib/hw.h"
+   5:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** #include "../Scheduler/Scheduler.hpp"
+   6:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** #include "../InterruptHandling/Riscv.hpp"
+   7:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+   8:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** // klasa TCB predstavlja apstrakciju niti
+   9:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** class TCB {
+  10:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** public:
+  11:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // definisanje korisnickog tipa Body - predstavljace pokazivac na void funkciju koja prima void
+  12:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     using Body = void (*)(void*);
+  13:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  14:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ova funkcija treba da napravi novu nit koja ce da izvrsava telo funkcije date parametrom bod
+  15:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ako se prosledi nullptr, to znaci da treba napraviti nit koja ce da izvrsava main funkciju
+  16:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // u tom slucaju, u konstrukciji te niti ne treba je davati scheduleru na raspolaganje, jer bi 
+  17:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // zelimo da bas ta nit main-a nastavi da se izvrsava
+  18:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     static TCB* createThread(Body body, void* arg, void* stack, bool cppApi);
+  19:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  20:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // obezbedjena enkapsulacija - atribut finished je privatan i moze se citati samo kroz getter m
+  21:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     bool getFinished() const { return finished; }
+  48              		.loc 2 21 32 is_stmt 1
+  49              		.loc 2 21 39 is_stmt 0
+  50 0040 83C70703 		lbu	a5,48(a5)
+  51              	.LVL4:
+  52              	.LBE55:
+  53              	.LBE54:
+  54              		.loc 1 146 5
+  55 0044 638C0700 		beqz	a5,.L4
+  56              	.L1:
+ 147:src/Code/Thread/TCB.cpp ****         thread_exit(); // sistemski poziv thread_exit za gasenje tekuce niti - unutar ovog poziva c
+ 148:src/Code/Thread/TCB.cpp ****     }
+ 149:src/Code/Thread/TCB.cpp **** }
+GAS LISTING /tmp/ccvQ3S00.s 			page 5
+
+
+  57              		.loc 1 149 1
+  58 0048 83308101 		ld	ra,24(sp)
+  59              		.cfi_remember_state
+  60              		.cfi_restore 1
+  61 004c 03340101 		ld	s0,16(sp)
+  62              		.cfi_restore 8
+  63              		.cfi_def_cfa 2, 32
+  64 0050 83348100 		ld	s1,8(sp)
+  65              		.cfi_restore 9
+  66 0054 13010102 		addi	sp,sp,32
+  67              		.cfi_def_cfa_offset 0
+  68 0058 67800000 		jr	ra
+  69              	.L4:
+  70              		.cfi_restore_state
+ 147:src/Code/Thread/TCB.cpp ****         thread_exit(); // sistemski poziv thread_exit za gasenje tekuce niti - unutar ovog poziva c
+  71              		.loc 1 147 9 is_stmt 1
+ 147:src/Code/Thread/TCB.cpp ****         thread_exit(); // sistemski poziv thread_exit za gasenje tekuce niti - unutar ovog poziva c
+  72              		.loc 1 147 20 is_stmt 0
+  73 005c 97000000 		call	_Z11thread_exitv@plt
+  73      E7800000 
+  74              	.LVL5:
+  75              		.loc 1 149 1
+  76 0064 6FF05FFE 		j	.L1
+  77              		.cfi_endproc
+  78              	.LFE60:
+  80              		.align	2
+  81              		.globl	_ZN3TCB17insertSleepThreadEm
+  83              	_ZN3TCB17insertSleepThreadEm:
+  84              	.LFB45:
+  26:src/Code/Thread/TCB.cpp ****     if (!sleepHead || !sleepTail) {
+  85              		.loc 1 26 42 is_stmt 1
+  86              		.cfi_startproc
+  87              	.LVL6:
+  88 0068 130101FF 		addi	sp,sp,-16
+  89              		.cfi_def_cfa_offset 16
+  90 006c 23348100 		sd	s0,8(sp)
+  91              		.cfi_offset 8, -8
+  92 0070 13040101 		addi	s0,sp,16
+  93              		.cfi_def_cfa 8, 0
+  27:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+  94              		.loc 1 27 5
+  27:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+  95              		.loc 1 27 9 is_stmt 0
+  96 0074 97070000 		ld	a5,.LANCHOR0+8
+  96      83B70700 
+  27:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+  97              		.loc 1 27 5
+  98 007c 63860702 		beqz	a5,.L6
+  27:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+  99              		.loc 1 27 23 discriminator 1
+ 100 0080 17060000 		ld	a2,.LANCHOR0+16
+ 100      03360600 
+  27:src/Code/Thread/TCB.cpp ****         sleepHead = sleepTail = runningThread;
+ 101              		.loc 1 27 20 discriminator 1
+ 102 0088 63000602 		beqz	a2,.L6
+  32:src/Code/Thread/TCB.cpp ****     for (TCB* curr = sleepHead; curr; curr = curr->getNextSleepThread()) {
+ 103              		.loc 1 32 12
+GAS LISTING /tmp/ccvQ3S00.s 			page 6
+
+
+ 104 008c 13070000 		li	a4,0
+ 105              	.L7:
+ 106              	.LVL7:
+ 107              	.LBB56:
+  33:src/Code/Thread/TCB.cpp ****         currSumOfSleepTimes += curr->getSleepTime();
+ 108              		.loc 1 33 33 is_stmt 1 discriminator 1
+ 109 0090 63800708 		beqz	a5,.L9
+  34:src/Code/Thread/TCB.cpp ****         if (time < currSumOfSleepTimes) {
+ 110              		.loc 1 34 9
+ 111              	.LVL8:
+ 112              	.LBB57:
+ 113              	.LBB58:
+  22:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setFinished(bool value) { finished = value; }
+  23:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  24:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ovaj metod vraca vremenski odsecak (kvantum) koji je dodeljen tekucem objektu klase TCB (nit
+  25:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // to je broj perioda tajmera - on govori koliko vremena ce se nit izvrsavati
+  26:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getTimeSlice() const { return timeSlice; }
+  27:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  28:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ovaj metod vraca adresu funkcije koju treba da izvrsava tekuca nit
+  29:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     Body getBody() const { return body; }
+  30:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  31:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // privatne atribute schedulerPrevThread i schedulerNextThread sam ispravno enkapsulirao jer su
+  32:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // i mogu se modifikovati samo kroz setter metode, a mogu da se procitaju samo preko getter met
+  33:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getPrevThreadScheduler() const { return schedulerPrevThread; }
+  34:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+  35:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  36:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextThreadScheduler(TCB* next) { schedulerNextThread = next; }
+  37:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  38:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ova metoda sluzi da promeni kontekst, pri cemu tekucu nit suspenduje
+  39:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // tako sto je ne vraca u rasporedjivac cak iako ona nije zavrsena
+  40:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     static void suspendCurrentThread();
+  41:src/Code/Thread/../../../h/Code/Thread/TCB.hpp **** 
+  42:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ova metoda umece tekucu nit u red uspavanih niti i to sa zadatim brojem perioda tajmera koli
+  43:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     static void insertSleepThread(uint64 time);
+  44:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // ova metoda azurira listu uspavanih niti tako sto dekrementira sleepTime prve niti u listi, i
+  45:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     // onda se u red spremnih niti vracaju sve niti koje takodje imaju sleepTime nula pocevsi od po
+  46:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     static void updateSleepThreadList();
+  47:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getPrevSleepThread() const { return sleepPrevThread; }
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevSleepThread(TCB* prev) { sleepPrevThread = prev; }
+  49:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextSleepThread(TCB* next) { sleepNextThread = next; }
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+  52:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 114              		.loc 2 52 35
+ 115              		.loc 2 52 42 is_stmt 0
+ 116 0094 83B68704 		ld	a3,72(a5)
+ 117              	.LVL9:
+ 118              	.LBE58:
+ 119              	.LBE57:
+  34:src/Code/Thread/TCB.cpp ****         if (time < currSumOfSleepTimes) {
+ 120              		.loc 1 34 29
+ 121 0098 3307D700 		add	a4,a4,a3
+ 122              	.LVL10:
+  35:src/Code/Thread/TCB.cpp ****             runningThread->setNextSleepThread(curr);
+ 123              		.loc 1 35 9 is_stmt 1
+ 124 009c 6364E502 		bgtu	a4,a0,.L15
+  33:src/Code/Thread/TCB.cpp ****         currSumOfSleepTimes += curr->getSleepTime();
+GAS LISTING /tmp/ccvQ3S00.s 			page 7
+
+
+ 125              		.loc 1 33 5
+ 126              	.LVL11:
+ 127              	.LBB59:
+ 128              	.LBB60:
+  49:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextSleepThread(TCB* next) { sleepNextThread = next; }
+ 129              		.loc 2 49 39
+  49:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextSleepThread(TCB* next) { sleepNextThread = next; }
+ 130              		.loc 2 49 46 is_stmt 0
+ 131 00a0 83B70705 		ld	a5,80(a5)
+ 132              	.LVL12:
+ 133              	.LBE60:
+ 134              	.LBE59:
+  33:src/Code/Thread/TCB.cpp ****         currSumOfSleepTimes += curr->getSleepTime();
+ 135              		.loc 1 33 5
+ 136 00a4 6FF0DFFE 		j	.L7
+ 137              	.LVL13:
+ 138              	.L6:
+ 139              	.LBE56:
+  28:src/Code/Thread/TCB.cpp ****         runningThread->setSleepTime(time); // prvi element liste uspavanih niti ce pamtiti pravi br
+ 140              		.loc 1 28 9 is_stmt 1
+  28:src/Code/Thread/TCB.cpp ****         runningThread->setSleepTime(time); // prvi element liste uspavanih niti ce pamtiti pravi br
+ 141              		.loc 1 28 31 is_stmt 0
+ 142 00a8 17070000 		lla	a4,.LANCHOR0
+ 142      13070700 
+ 143 00b0 83370700 		ld	a5,0(a4)
+ 144 00b4 2338F700 		sd	a5,16(a4)
+  28:src/Code/Thread/TCB.cpp ****         runningThread->setSleepTime(time); // prvi element liste uspavanih niti ce pamtiti pravi br
+ 145              		.loc 1 28 19
+ 146 00b8 2334F700 		sd	a5,8(a4)
+  29:src/Code/Thread/TCB.cpp ****         return;
+ 147              		.loc 1 29 9 is_stmt 1
+ 148              	.LVL14:
+ 149              	.LBB79:
+ 150              	.LBB80:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 151              		.loc 2 51 38
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 152              		.loc 2 51 48 is_stmt 0
+ 153 00bc 23B4A704 		sd	a0,72(a5)
+ 154              	.LVL15:
+ 155              	.LBE80:
+ 156              	.LBE79:
+  30:src/Code/Thread/TCB.cpp ****     }
+ 157              		.loc 1 30 9 is_stmt 1
+ 158 00c0 6F000007 		j	.L5
+ 159              	.LVL16:
+ 160              	.L15:
+ 161              	.LBB81:
+  36:src/Code/Thread/TCB.cpp ****             runningThread->setPrevSleepThread(curr->getPrevSleepThread());
+ 162              		.loc 1 36 13
+  36:src/Code/Thread/TCB.cpp ****             runningThread->setPrevSleepThread(curr->getPrevSleepThread());
+ 163              		.loc 1 36 46 is_stmt 0
+ 164 00c4 97060000 		ld	a3,.LANCHOR0
+ 164      83B60600 
+ 165              	.LVL17:
+ 166              	.LBB61:
+ 167              	.LBB62:
+GAS LISTING /tmp/ccvQ3S00.s 			page 8
+
+
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 168              		.loc 2 50 42 is_stmt 1
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 169              		.loc 2 50 58 is_stmt 0
+ 170 00cc 23B8F604 		sd	a5,80(a3)
+ 171              	.LVL18:
+ 172              	.LBE62:
+ 173              	.LBE61:
+  37:src/Code/Thread/TCB.cpp ****             if (!curr->getPrevSleepThread()) {
+ 174              		.loc 1 37 13 is_stmt 1
+ 175              	.LBB63:
+ 176              	.LBB64:
+  47:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevSleepThread(TCB* prev) { sleepPrevThread = prev; }
+ 177              		.loc 2 47 39
+  47:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevSleepThread(TCB* prev) { sleepPrevThread = prev; }
+ 178              		.loc 2 47 46 is_stmt 0
+ 179 00d0 03B68705 		ld	a2,88(a5)
+ 180              	.LVL19:
+ 181              	.LBE64:
+ 182              	.LBE63:
+ 183              	.LBB65:
+ 184              	.LBB66:
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 185              		.loc 2 48 42 is_stmt 1
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 186              		.loc 2 48 58 is_stmt 0
+ 187 00d4 23BCC604 		sd	a2,88(a3)
+ 188              	.LVL20:
+ 189              	.LBE66:
+ 190              	.LBE65:
+  38:src/Code/Thread/TCB.cpp ****                 // umetanje tekuce niti (runningThread) na pocetak liste uspavanih niti
+ 191              		.loc 1 38 13 is_stmt 1
+ 192              	.LBE81:
+  47:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevSleepThread(TCB* prev) { sleepPrevThread = prev; }
+ 193              		.loc 2 47 39
+ 194              	.LBB82:
+  38:src/Code/Thread/TCB.cpp ****                 // umetanje tekuce niti (runningThread) na pocetak liste uspavanih niti
+ 195              		.loc 1 38 13 is_stmt 0
+ 196 00d8 63000602 		beqz	a2,.L16
+  45:src/Code/Thread/TCB.cpp ****                 runningThread->setSleepTime(time - (currSumOfSleepTimes - curr->getSleepTime()));
+ 197              		.loc 1 45 17 is_stmt 1
+ 198              	.LVL21:
+ 199              	.LBE82:
+  47:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setPrevSleepThread(TCB* prev) { sleepPrevThread = prev; }
+ 200              		.loc 2 47 39
+ 201              	.LBB83:
+ 202              	.LBB67:
+ 203              	.LBB68:
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 204              		.loc 2 50 42
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 205              		.loc 2 50 58 is_stmt 0
+ 206 00dc 2338D604 		sd	a3,80(a2)
+ 207              	.LVL22:
+ 208              	.LBE68:
+ 209              	.LBE67:
+  46:src/Code/Thread/TCB.cpp ****             }
+GAS LISTING /tmp/ccvQ3S00.s 			page 9
+
+
+ 210              		.loc 1 46 17 is_stmt 1
+ 211              	.LBB69:
+ 212              	.LBB70:
+ 213              		.loc 2 52 35
+ 214              		.loc 2 52 42 is_stmt 0
+ 215 00e0 03B68704 		ld	a2,72(a5)
+ 216              	.LVL23:
+ 217              	.LBE70:
+ 218              	.LBE69:
+  46:src/Code/Thread/TCB.cpp ****             }
+ 219              		.loc 1 46 73
+ 220 00e4 3307E640 		sub	a4,a2,a4
+ 221              	.LVL24:
+  46:src/Code/Thread/TCB.cpp ****             }
+ 222              		.loc 1 46 44
+ 223 00e8 3307A700 		add	a4,a4,a0
+ 224              	.LVL25:
+ 225              	.LBB71:
+ 226              	.LBB72:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 227              		.loc 2 51 38 is_stmt 1
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 228              		.loc 2 51 48 is_stmt 0
+ 229 00ec 23B4E604 		sd	a4,72(a3)
+ 230              	.LVL26:
+ 231              	.L12:
+ 232              	.LBE72:
+ 233              	.LBE71:
+  48:src/Code/Thread/TCB.cpp ****             return;
+ 234              		.loc 1 48 13 is_stmt 1
+ 235              	.LBB73:
+ 236              	.LBB74:
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 237              		.loc 2 48 42
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 238              		.loc 2 48 58 is_stmt 0
+ 239 00f0 23BCD704 		sd	a3,88(a5)
+ 240              	.LVL27:
+ 241              	.LBE74:
+ 242              	.LBE73:
+  49:src/Code/Thread/TCB.cpp ****         }
+ 243              		.loc 1 49 13 is_stmt 1
+ 244 00f4 6F00C003 		j	.L5
+ 245              	.LVL28:
+ 246              	.L16:
+  40:src/Code/Thread/TCB.cpp ****                 curr->setSleepTime(currSumOfSleepTimes - time);
+ 247              		.loc 1 40 17
+ 248              	.LBB75:
+ 249              	.LBB76:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 250              		.loc 2 51 38
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 251              		.loc 2 51 48 is_stmt 0
+ 252 00f8 23B4A604 		sd	a0,72(a3)
+ 253              	.LVL29:
+ 254              	.LBE76:
+ 255              	.LBE75:
+GAS LISTING /tmp/ccvQ3S00.s 			page 10
+
+
+  41:src/Code/Thread/TCB.cpp ****                 sleepHead = runningThread;
+ 256              		.loc 1 41 17 is_stmt 1
+  41:src/Code/Thread/TCB.cpp ****                 sleepHead = runningThread;
+ 257              		.loc 1 41 35 is_stmt 0
+ 258 00fc 3307A740 		sub	a4,a4,a0
+ 259              	.LVL30:
+ 260              	.LBB77:
+ 261              	.LBB78:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 262              		.loc 2 51 38 is_stmt 1
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 263              		.loc 2 51 48 is_stmt 0
+ 264 0100 23B4E704 		sd	a4,72(a5)
+ 265              	.LVL31:
+ 266              	.LBE78:
+ 267              	.LBE77:
+  42:src/Code/Thread/TCB.cpp ****             } else {
+ 268              		.loc 1 42 17 is_stmt 1
+  42:src/Code/Thread/TCB.cpp ****             } else {
+ 269              		.loc 1 42 27 is_stmt 0
+ 270 0104 17070000 		sd	a3,.LANCHOR0+8,a4
+ 270      2330D700 
+ 271 010c 6FF05FFE 		j	.L12
+ 272              	.LVL32:
+ 273              	.L9:
+ 274              	.LBE83:
+  53:src/Code/Thread/TCB.cpp ****     sleepTail->setNextSleepThread(runningThread);
+ 275              		.loc 1 53 5 is_stmt 1
+  53:src/Code/Thread/TCB.cpp ****     sleepTail->setNextSleepThread(runningThread);
+ 276              		.loc 1 53 38 is_stmt 0
+ 277 0110 97060000 		lla	a3,.LANCHOR0
+ 277      93860600 
+ 278 0118 83B70600 		ld	a5,0(a3)
+ 279              	.LVL33:
+ 280              	.LBB84:
+ 281              	.LBB85:
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 282              		.loc 2 48 42 is_stmt 1
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 283              		.loc 2 48 58 is_stmt 0
+ 284 011c 23BCC704 		sd	a2,88(a5)
+ 285              	.LVL34:
+ 286              	.LBE85:
+ 287              	.LBE84:
+  54:src/Code/Thread/TCB.cpp ****     runningThread->setSleepTime(time - currSumOfSleepTimes);
+ 288              		.loc 1 54 5 is_stmt 1
+ 289              	.LBB86:
+ 290              	.LBB87:
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 291              		.loc 2 50 42
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 292              		.loc 2 50 58 is_stmt 0
+ 293 0120 2338F604 		sd	a5,80(a2)
+ 294              	.LVL35:
+ 295              	.LBE87:
+ 296              	.LBE86:
+  55:src/Code/Thread/TCB.cpp ****     sleepTail = runningThread;
+GAS LISTING /tmp/ccvQ3S00.s 			page 11
+
+
+ 297              		.loc 1 55 5 is_stmt 1
+  55:src/Code/Thread/TCB.cpp ****     sleepTail = runningThread;
+ 298              		.loc 1 55 32 is_stmt 0
+ 299 0124 3307E540 		sub	a4,a0,a4
+ 300              	.LVL36:
+ 301              	.LBB88:
+ 302              	.LBB89:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 303              		.loc 2 51 38 is_stmt 1
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 304              		.loc 2 51 48 is_stmt 0
+ 305 0128 23B4E704 		sd	a4,72(a5)
+ 306              	.LVL37:
+ 307              	.LBE89:
+ 308              	.LBE88:
+  56:src/Code/Thread/TCB.cpp **** }
+ 309              		.loc 1 56 5 is_stmt 1
+  56:src/Code/Thread/TCB.cpp **** }
+ 310              		.loc 1 56 15 is_stmt 0
+ 311 012c 23B8F600 		sd	a5,16(a3)
+ 312              	.L5:
+  57:src/Code/Thread/TCB.cpp **** 
+ 313              		.loc 1 57 1
+ 314 0130 03348100 		ld	s0,8(sp)
+ 315              		.cfi_restore 8
+ 316              		.cfi_def_cfa 2, 16
+ 317 0134 13010101 		addi	sp,sp,16
+ 318              		.cfi_def_cfa_offset 0
+ 319 0138 67800000 		jr	ra
+ 320              		.cfi_endproc
+ 321              	.LFE45:
+ 323              		.align	2
+ 324              		.globl	_ZN3TCB21updateSleepThreadListEv
+ 326              	_ZN3TCB21updateSleepThreadListEv:
+ 327              	.LFB46:
+  59:src/Code/Thread/TCB.cpp ****     if (!sleepHead || !sleepTail) return;
+ 328              		.loc 1 59 35 is_stmt 1
+ 329              		.cfi_startproc
+ 330 013c 130101FE 		addi	sp,sp,-32
+ 331              		.cfi_def_cfa_offset 32
+ 332 0140 233C1100 		sd	ra,24(sp)
+ 333 0144 23388100 		sd	s0,16(sp)
+ 334 0148 23349100 		sd	s1,8(sp)
+ 335 014c 23302101 		sd	s2,0(sp)
+ 336              		.cfi_offset 1, -8
+ 337              		.cfi_offset 8, -16
+ 338              		.cfi_offset 9, -24
+ 339              		.cfi_offset 18, -32
+ 340 0150 13040102 		addi	s0,sp,32
+ 341              		.cfi_def_cfa 8, 0
+  60:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+ 342              		.loc 1 60 5
+  60:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+ 343              		.loc 1 60 9 is_stmt 0
+ 344 0154 97040000 		ld	s1,.LANCHOR0+8
+ 344      83B40400 
+  60:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+GAS LISTING /tmp/ccvQ3S00.s 			page 12
+
+
+ 345              		.loc 1 60 5
+ 346 015c 63820402 		beqz	s1,.L17
+  60:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+ 347              		.loc 1 60 23 discriminator 2
+ 348 0160 97070000 		ld	a5,.LANCHOR0+16
+ 348      83B70700 
+  60:src/Code/Thread/TCB.cpp ****     sleepHead->setSleepTime(sleepHead->getSleepTime() - 1);
+ 349              		.loc 1 60 20 discriminator 2
+ 350 0168 638C0700 		beqz	a5,.L17
+  61:src/Code/Thread/TCB.cpp ****     TCB* curr = sleepHead;
+ 351              		.loc 1 61 5 is_stmt 1
+ 352              	.LVL38:
+ 353              	.LBB90:
+ 354              	.LBB91:
+ 355              		.loc 2 52 35
+ 356              		.loc 2 52 42 is_stmt 0
+ 357 016c 83B78404 		ld	a5,72(s1)
+ 358              	.LVL39:
+ 359              	.LBE91:
+ 360              	.LBE90:
+  61:src/Code/Thread/TCB.cpp ****     TCB* curr = sleepHead;
+ 361              		.loc 1 61 28
+ 362 0170 9387F7FF 		addi	a5,a5,-1
+ 363              	.LVL40:
+ 364              	.LBB92:
+ 365              	.LBB93:
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 366              		.loc 2 51 38 is_stmt 1
+  51:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     uint64 getSleepTime() const { return sleepTime; }
+ 367              		.loc 2 51 48 is_stmt 0
+ 368 0174 23B4F404 		sd	a5,72(s1)
+ 369              	.LVL41:
+ 370              	.LBE93:
+ 371              	.LBE92:
+  62:src/Code/Thread/TCB.cpp ****     // budjenje niti kojima je sleepTime dostigao vrednost nula
+ 372              		.loc 1 62 5 is_stmt 1
+ 373 0178 6F00C003 		j	.L23
+ 374              	.L19:
+  73:src/Code/Thread/TCB.cpp **** }
+ 375              		.loc 1 73 5 discriminator 4
+ 376 017c 638E0404 		beqz	s1,.L25
+ 377              	.LVL42:
+ 378              	.L17:
+  74:src/Code/Thread/TCB.cpp **** 
+ 379              		.loc 1 74 1 is_stmt 0
+ 380 0180 83308101 		ld	ra,24(sp)
+ 381              		.cfi_remember_state
+ 382              		.cfi_restore 1
+ 383 0184 03340101 		ld	s0,16(sp)
+ 384              		.cfi_restore 8
+ 385              		.cfi_def_cfa 2, 32
+ 386 0188 83348100 		ld	s1,8(sp)
+ 387              		.cfi_restore 9
+ 388 018c 03390100 		ld	s2,0(sp)
+ 389              		.cfi_restore 18
+ 390 0190 13010102 		addi	sp,sp,32
+ 391              		.cfi_def_cfa_offset 0
+GAS LISTING /tmp/ccvQ3S00.s 			page 13
+
+
+ 392 0194 67800000 		jr	ra
+ 393              	.LVL43:
+ 394              	.L21:
+ 395              		.cfi_restore_state
+ 396              	.LBB94:
+  69:src/Code/Thread/TCB.cpp ****         Scheduler::getInstance().put(oldCurr);
+ 397              		.loc 1 69 9 is_stmt 1
+ 398              	.LBB95:
+ 399              	.LBB96:
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 400              		.loc 2 50 42
+  50:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setSleepTime(uint64 time) { sleepTime = time; }
+ 401              		.loc 2 50 58 is_stmt 0
+ 402 0198 23B80404 		sd	zero,80(s1)
+ 403              	.LVL44:
+ 404              	.LBE96:
+ 405              	.LBE95:
+  70:src/Code/Thread/TCB.cpp ****     }
+ 406              		.loc 1 70 9 is_stmt 1
+  70:src/Code/Thread/TCB.cpp ****     }
+ 407              		.loc 1 70 32 is_stmt 0
+ 408 019c 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 408      E7800000 
+ 409              	.LVL45:
+  70:src/Code/Thread/TCB.cpp ****     }
+ 410              		.loc 1 70 37
+ 411 01a4 93850400 		mv	a1,s1
+ 412 01a8 97000000 		call	_ZN9Scheduler3putEP3TCB@plt
+ 412      E7800000 
+ 413              	.LVL46:
+  66:src/Code/Thread/TCB.cpp ****         sleepHead = curr;
+ 414              		.loc 1 66 40
+ 415 01b0 93040900 		mv	s1,s2
+ 416              	.LVL47:
+ 417              	.L23:
+ 418              	.LBE94:
+  64:src/Code/Thread/TCB.cpp ****         TCB* oldCurr = curr;
+ 419              		.loc 1 64 5 is_stmt 1
+  64:src/Code/Thread/TCB.cpp ****         TCB* oldCurr = curr;
+ 420              		.loc 1 64 17
+ 421 01b4 E38404FC 		beqz	s1,.L19
+ 422              	.LVL48:
+ 423              	.LBB101:
+ 424              	.LBB102:
+ 425              		.loc 2 52 35
+ 426              		.loc 2 52 42 is_stmt 0
+ 427 01b8 83B78404 		ld	a5,72(s1)
+ 428              	.LVL49:
+ 429              	.LBE102:
+ 430              	.LBE101:
+  64:src/Code/Thread/TCB.cpp ****         TCB* oldCurr = curr;
+ 431              		.loc 1 64 17
+ 432 01bc E39007FC 		bnez	a5,.L19
+ 433              	.LBB103:
+  65:src/Code/Thread/TCB.cpp ****         curr = curr->getNextSleepThread();
+ 434              		.loc 1 65 9 is_stmt 1
+ 435              	.LVL50:
+GAS LISTING /tmp/ccvQ3S00.s 			page 14
+
+
+  66:src/Code/Thread/TCB.cpp ****         sleepHead = curr;
+ 436              		.loc 1 66 9
+ 437              	.LBB97:
+ 438              	.LBB98:
+  49:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextSleepThread(TCB* next) { sleepNextThread = next; }
+ 439              		.loc 2 49 39
+  49:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setNextSleepThread(TCB* next) { sleepNextThread = next; }
+ 440              		.loc 2 49 46 is_stmt 0
+ 441 01c0 03B90405 		ld	s2,80(s1)
+ 442              	.LVL51:
+ 443              	.LBE98:
+ 444              	.LBE97:
+  67:src/Code/Thread/TCB.cpp ****         if (curr) curr->setPrevSleepThread(nullptr);
+ 445              		.loc 1 67 9 is_stmt 1
+  67:src/Code/Thread/TCB.cpp ****         if (curr) curr->setPrevSleepThread(nullptr);
+ 446              		.loc 1 67 19 is_stmt 0
+ 447 01c4 97070000 		sd	s2,.LANCHOR0+8,a5
+ 447      23B02701 
+  68:src/Code/Thread/TCB.cpp ****         oldCurr->setNextSleepThread(nullptr);
+ 448              		.loc 1 68 9 is_stmt 1
+ 449 01cc E30609FC 		beqz	s2,.L21
+  68:src/Code/Thread/TCB.cpp ****         oldCurr->setNextSleepThread(nullptr);
+ 450              		.loc 1 68 19
+ 451              	.LVL52:
+ 452              	.LBB99:
+ 453              	.LBB100:
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 454              		.loc 2 48 42
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 455              		.loc 2 48 58 is_stmt 0
+ 456 01d0 233C0904 		sd	zero,88(s2)
+  48:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextSleepThread() const { return sleepNextThread; }
+ 457              		.loc 2 48 66
+ 458 01d4 6FF05FFC 		j	.L21
+ 459              	.LVL53:
+ 460              	.L25:
+ 461              	.LBE100:
+ 462              	.LBE99:
+ 463              	.LBE103:
+  73:src/Code/Thread/TCB.cpp **** }
+ 464              		.loc 1 73 16 is_stmt 1 discriminator 1
+  73:src/Code/Thread/TCB.cpp **** }
+ 465              		.loc 1 73 38 is_stmt 0 discriminator 1
+ 466 01d8 97070000 		lla	a5,.LANCHOR0
+ 466      93870700 
+ 467 01e0 23B80700 		sd	zero,16(a5)
+  73:src/Code/Thread/TCB.cpp **** }
+ 468              		.loc 1 73 26 discriminator 1
+ 469 01e4 23B40700 		sd	zero,8(a5)
+ 470 01e8 6FF09FF9 		j	.L17
+ 471              		.cfi_endproc
+ 472              	.LFE46:
+ 474              		.align	2
+ 475              		.globl	_ZN3TCBnwEm
+ 477              	_ZN3TCBnwEm:
+ 478              	.LFB47:
+  76:src/Code/Thread/TCB.cpp ****     void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
+GAS LISTING /tmp/ccvQ3S00.s 			page 15
+
+
+ 479              		.loc 1 76 35 is_stmt 1
+ 480              		.cfi_startproc
+ 481              	.LVL54:
+ 482 01ec 130101FE 		addi	sp,sp,-32
+ 483              		.cfi_def_cfa_offset 32
+ 484 01f0 233C1100 		sd	ra,24(sp)
+ 485 01f4 23388100 		sd	s0,16(sp)
+ 486 01f8 23349100 		sd	s1,8(sp)
+ 487              		.cfi_offset 1, -8
+ 488              		.cfi_offset 8, -16
+ 489              		.cfi_offset 9, -24
+ 490 01fc 13040102 		addi	s0,sp,32
+ 491              		.cfi_def_cfa 8, 0
+ 492 0200 93040500 		mv	s1,a0
+  77:src/Code/Thread/TCB.cpp ****     return ptr;
+ 493              		.loc 1 77 5
+  77:src/Code/Thread/TCB.cpp ****     return ptr;
+ 494              		.loc 1 77 46 is_stmt 0
+ 495 0204 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 495      E7800000 
+ 496              	.LVL55:
+  77:src/Code/Thread/TCB.cpp ****     return ptr;
+ 497              		.loc 1 77 63
+ 498 020c 93850400 		mv	a1,s1
+ 499 0210 97000000 		call	_ZN15MemoryAllocator15allocateSegmentEm@plt
+ 499      E7800000 
+ 500              	.LVL56:
+  78:src/Code/Thread/TCB.cpp **** }
+ 501              		.loc 1 78 5 is_stmt 1
+  79:src/Code/Thread/TCB.cpp **** 
+ 502              		.loc 1 79 1 is_stmt 0
+ 503 0218 83308101 		ld	ra,24(sp)
+ 504              		.cfi_restore 1
+ 505 021c 03340101 		ld	s0,16(sp)
+ 506              		.cfi_restore 8
+ 507              		.cfi_def_cfa 2, 32
+ 508 0220 83348100 		ld	s1,8(sp)
+ 509              		.cfi_restore 9
+ 510              	.LVL57:
+ 511 0224 13010102 		addi	sp,sp,32
+ 512              		.cfi_def_cfa_offset 0
+ 513 0228 67800000 		jr	ra
+ 514              		.cfi_endproc
+ 515              	.LFE47:
+ 517              		.align	2
+ 518              		.globl	_ZN3TCBnaEm
+ 520              	_ZN3TCBnaEm:
+ 521              	.LFB48:
+  81:src/Code/Thread/TCB.cpp ****     void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
+ 522              		.loc 1 81 37 is_stmt 1
+ 523              		.cfi_startproc
+ 524              	.LVL58:
+ 525 022c 130101FE 		addi	sp,sp,-32
+ 526              		.cfi_def_cfa_offset 32
+ 527 0230 233C1100 		sd	ra,24(sp)
+ 528 0234 23388100 		sd	s0,16(sp)
+ 529 0238 23349100 		sd	s1,8(sp)
+GAS LISTING /tmp/ccvQ3S00.s 			page 16
+
+
+ 530              		.cfi_offset 1, -8
+ 531              		.cfi_offset 8, -16
+ 532              		.cfi_offset 9, -24
+ 533 023c 13040102 		addi	s0,sp,32
+ 534              		.cfi_def_cfa 8, 0
+ 535 0240 93040500 		mv	s1,a0
+  82:src/Code/Thread/TCB.cpp ****     return ptr;
+ 536              		.loc 1 82 5
+  82:src/Code/Thread/TCB.cpp ****     return ptr;
+ 537              		.loc 1 82 46 is_stmt 0
+ 538 0244 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 538      E7800000 
+ 539              	.LVL59:
+  82:src/Code/Thread/TCB.cpp ****     return ptr;
+ 540              		.loc 1 82 63
+ 541 024c 93850400 		mv	a1,s1
+ 542 0250 97000000 		call	_ZN15MemoryAllocator15allocateSegmentEm@plt
+ 542      E7800000 
+ 543              	.LVL60:
+  83:src/Code/Thread/TCB.cpp **** }
+ 544              		.loc 1 83 5 is_stmt 1
+  84:src/Code/Thread/TCB.cpp **** 
+ 545              		.loc 1 84 1 is_stmt 0
+ 546 0258 83308101 		ld	ra,24(sp)
+ 547              		.cfi_restore 1
+ 548 025c 03340101 		ld	s0,16(sp)
+ 549              		.cfi_restore 8
+ 550              		.cfi_def_cfa 2, 32
+ 551 0260 83348100 		ld	s1,8(sp)
+ 552              		.cfi_restore 9
+ 553              	.LVL61:
+ 554 0264 13010102 		addi	sp,sp,32
+ 555              		.cfi_def_cfa_offset 0
+ 556 0268 67800000 		jr	ra
+ 557              		.cfi_endproc
+ 558              	.LFE48:
+ 560              		.align	2
+ 561              		.globl	_ZN3TCBdlEPv
+ 563              	_ZN3TCBdlEPv:
+ 564              	.LFB49:
+  86:src/Code/Thread/TCB.cpp ****     MemoryAllocator::getInstance().deallocateSegment(ptr);
+ 565              		.loc 1 86 38 is_stmt 1
+ 566              		.cfi_startproc
+ 567              	.LVL62:
+ 568 026c 130101FE 		addi	sp,sp,-32
+ 569              		.cfi_def_cfa_offset 32
+ 570 0270 233C1100 		sd	ra,24(sp)
+ 571 0274 23388100 		sd	s0,16(sp)
+ 572 0278 23349100 		sd	s1,8(sp)
+ 573              		.cfi_offset 1, -8
+ 574              		.cfi_offset 8, -16
+ 575              		.cfi_offset 9, -24
+ 576 027c 13040102 		addi	s0,sp,32
+ 577              		.cfi_def_cfa 8, 0
+ 578 0280 93040500 		mv	s1,a0
+  87:src/Code/Thread/TCB.cpp **** }
+ 579              		.loc 1 87 5
+GAS LISTING /tmp/ccvQ3S00.s 			page 17
+
+
+  87:src/Code/Thread/TCB.cpp **** }
+ 580              		.loc 1 87 34 is_stmt 0
+ 581 0284 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 581      E7800000 
+ 582              	.LVL63:
+  87:src/Code/Thread/TCB.cpp **** }
+ 583              		.loc 1 87 53
+ 584 028c 93850400 		mv	a1,s1
+ 585 0290 97000000 		call	_ZN15MemoryAllocator17deallocateSegmentEPv@plt
+ 585      E7800000 
+ 586              	.LVL64:
+  88:src/Code/Thread/TCB.cpp **** 
+ 587              		.loc 1 88 1
+ 588 0298 83308101 		ld	ra,24(sp)
+ 589              		.cfi_restore 1
+ 590 029c 03340101 		ld	s0,16(sp)
+ 591              		.cfi_restore 8
+ 592              		.cfi_def_cfa 2, 32
+ 593 02a0 83348100 		ld	s1,8(sp)
+ 594              		.cfi_restore 9
+ 595              	.LVL65:
+ 596 02a4 13010102 		addi	sp,sp,32
+ 597              		.cfi_def_cfa_offset 0
+ 598 02a8 67800000 		jr	ra
+ 599              		.cfi_endproc
+ 600              	.LFE49:
+ 602              		.align	2
+ 603              		.globl	_ZN3TCBdaEPv
+ 605              	_ZN3TCBdaEPv:
+ 606              	.LFB50:
+  90:src/Code/Thread/TCB.cpp ****     MemoryAllocator::getInstance().deallocateSegment(ptr);
+ 607              		.loc 1 90 40 is_stmt 1
+ 608              		.cfi_startproc
+ 609              	.LVL66:
+ 610 02ac 130101FE 		addi	sp,sp,-32
+ 611              		.cfi_def_cfa_offset 32
+ 612 02b0 233C1100 		sd	ra,24(sp)
+ 613 02b4 23388100 		sd	s0,16(sp)
+ 614 02b8 23349100 		sd	s1,8(sp)
+ 615              		.cfi_offset 1, -8
+ 616              		.cfi_offset 8, -16
+ 617              		.cfi_offset 9, -24
+ 618 02bc 13040102 		addi	s0,sp,32
+ 619              		.cfi_def_cfa 8, 0
+ 620 02c0 93040500 		mv	s1,a0
+  91:src/Code/Thread/TCB.cpp **** }
+ 621              		.loc 1 91 5
+  91:src/Code/Thread/TCB.cpp **** }
+ 622              		.loc 1 91 34 is_stmt 0
+ 623 02c4 97000000 		call	_ZN15MemoryAllocator11getInstanceEv@plt
+ 623      E7800000 
+ 624              	.LVL67:
+  91:src/Code/Thread/TCB.cpp **** }
+ 625              		.loc 1 91 53
+ 626 02cc 93850400 		mv	a1,s1
+ 627 02d0 97000000 		call	_ZN15MemoryAllocator17deallocateSegmentEPv@plt
+ 627      E7800000 
+GAS LISTING /tmp/ccvQ3S00.s 			page 18
+
+
+ 628              	.LVL68:
+  92:src/Code/Thread/TCB.cpp **** 
+ 629              		.loc 1 92 1
+ 630 02d8 83308101 		ld	ra,24(sp)
+ 631              		.cfi_restore 1
+ 632 02dc 03340101 		ld	s0,16(sp)
+ 633              		.cfi_restore 8
+ 634              		.cfi_def_cfa 2, 32
+ 635 02e0 83348100 		ld	s1,8(sp)
+ 636              		.cfi_restore 9
+ 637              	.LVL69:
+ 638 02e4 13010102 		addi	sp,sp,32
+ 639              		.cfi_def_cfa_offset 0
+ 640 02e8 67800000 		jr	ra
+ 641              		.cfi_endproc
+ 642              	.LFE50:
+ 644              		.align	2
+ 645              		.globl	_ZN3TCB25initializeClassAttributesEPS_PFvPvES1_S1_
+ 647              	_ZN3TCB25initializeClassAttributesEPS_PFvPvES1_S1_:
+ 648              	.LFB51:
+  94:src/Code/Thread/TCB.cpp ****     thisPointer->body = body;
+ 649              		.loc 1 94 90 is_stmt 1
+ 650              		.cfi_startproc
+ 651              	.LVL70:
+ 652 02ec 130101FF 		addi	sp,sp,-16
+ 653              		.cfi_def_cfa_offset 16
+ 654 02f0 23348100 		sd	s0,8(sp)
+ 655              		.cfi_offset 8, -8
+ 656 02f4 13040101 		addi	s0,sp,16
+ 657              		.cfi_def_cfa 8, 0
+  95:src/Code/Thread/TCB.cpp ****     thisPointer->arg = arg;
+ 658              		.loc 1 95 5
+  95:src/Code/Thread/TCB.cpp ****     thisPointer->arg = arg;
+ 659              		.loc 1 95 23 is_stmt 0
+ 660 02f8 2330B500 		sd	a1,0(a0)
+  96:src/Code/Thread/TCB.cpp ****     thisPointer->stack = static_cast<uint64*>(stack);
+ 661              		.loc 1 96 5 is_stmt 1
+  96:src/Code/Thread/TCB.cpp ****     thisPointer->stack = static_cast<uint64*>(stack);
+ 662              		.loc 1 96 22 is_stmt 0
+ 663 02fc 2334C500 		sd	a2,8(a0)
+  97:src/Code/Thread/TCB.cpp ****     // u polju ra strukture context cuvamo adresu na koju bi trebalo da skoci nit;
+ 664              		.loc 1 97 5 is_stmt 1
+  97:src/Code/Thread/TCB.cpp ****     // u polju ra strukture context cuvamo adresu na koju bi trebalo da skoci nit;
+ 665              		.loc 1 97 24 is_stmt 0
+ 666 0300 233CD500 		sd	a3,24(a0)
+ 101:src/Code/Thread/TCB.cpp ****     // sp se postavlja na vrh steka; posto sp pokazuje na poslednju zauzetu lokaciju, a na pocetku 
+ 667              		.loc 1 101 5 is_stmt 1
+ 101:src/Code/Thread/TCB.cpp ****     // sp se postavlja na vrh steka; posto sp pokazuje na poslednju zauzetu lokaciju, a na pocetku 
+ 668              		.loc 1 101 29 is_stmt 0
+ 669 0304 97070000 		lla	a5,_ZN3TCB13threadWrapperEv
+ 669      93870700 
+ 670 030c 2330F502 		sd	a5,32(a0)
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 671              		.loc 1 107 5 is_stmt 1
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 672              		.loc 1 107 37 is_stmt 0
+ 673 0310 638C0602 		beqz	a3,.L36
+GAS LISTING /tmp/ccvQ3S00.s 			page 19
+
+
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 674              		.loc 1 107 64 discriminator 1
+ 675 0314 B7170000 		li	a5,4096
+ 676 0318 B386F600 		add	a3,a3,a5
+ 677              	.LVL71:
+ 678              	.L35:
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 679              		.loc 1 107 29 discriminator 4
+ 680 031c 2334D502 		sd	a3,40(a0)
+ 108:src/Code/Thread/TCB.cpp ****     thisPointer->threadId = TCB::staticThreadId++;
+ 681              		.loc 1 108 5 is_stmt 1 discriminator 4
+ 108:src/Code/Thread/TCB.cpp ****     thisPointer->threadId = TCB::staticThreadId++;
+ 682              		.loc 1 108 27 is_stmt 0 discriminator 4
+ 683 0320 23080502 		sb	zero,48(a0)
+ 109:src/Code/Thread/TCB.cpp **** }
+ 684              		.loc 1 109 5 is_stmt 1 discriminator 4
+ 109:src/Code/Thread/TCB.cpp **** }
+ 685              		.loc 1 109 48 is_stmt 0 discriminator 4
+ 686 0324 17070000 		lla	a4,.LANCHOR0
+ 686      13070700 
+ 687 032c 83278701 		lw	a5,24(a4)
+ 688 0330 9B861700 		addiw	a3,a5,1
+ 689 0334 232CD700 		sw	a3,24(a4)
+ 109:src/Code/Thread/TCB.cpp **** }
+ 690              		.loc 1 109 27 discriminator 4
+ 691 0338 2326F506 		sw	a5,108(a0)
+ 110:src/Code/Thread/TCB.cpp **** 
+ 692              		.loc 1 110 1 discriminator 4
+ 693 033c 03348100 		ld	s0,8(sp)
+ 694              		.cfi_remember_state
+ 695              		.cfi_restore 8
+ 696              		.cfi_def_cfa 2, 16
+ 697 0340 13010101 		addi	sp,sp,16
+ 698              		.cfi_def_cfa_offset 0
+ 699 0344 67800000 		jr	ra
+ 700              	.LVL72:
+ 701              	.L36:
+ 702              		.cfi_restore_state
+ 107:src/Code/Thread/TCB.cpp ****     thisPointer->finished = false;
+ 703              		.loc 1 107 37
+ 704 0348 93060000 		li	a3,0
+ 705              	.LVL73:
+ 706 034c 6FF01FFD 		j	.L35
+ 707              		.cfi_endproc
+ 708              	.LFE51:
+ 710              		.align	2
+ 711              		.globl	_ZN3TCBC2EPFvPvES0_S0_
+ 713              	_ZN3TCBC2EPFvPvES0_S0_:
+ 714              	.LFB53:
+ 112:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 715              		.loc 1 112 1 is_stmt 1
+ 716              		.cfi_startproc
+ 717              	.LVL74:
+ 718 0350 130101FE 		addi	sp,sp,-32
+ 719              		.cfi_def_cfa_offset 32
+ 720 0354 233C1100 		sd	ra,24(sp)
+ 721 0358 23388100 		sd	s0,16(sp)
+GAS LISTING /tmp/ccvQ3S00.s 			page 20
+
+
+ 722 035c 23349100 		sd	s1,8(sp)
+ 723 0360 23302101 		sd	s2,0(sp)
+ 724              		.cfi_offset 1, -8
+ 725              		.cfi_offset 8, -16
+ 726              		.cfi_offset 9, -24
+ 727              		.cfi_offset 18, -32
+ 728 0364 13040102 		addi	s0,sp,32
+ 729              		.cfi_def_cfa 8, 0
+ 730 0368 93040500 		mv	s1,a0
+ 731 036c 13890500 		mv	s2,a1
+ 732              	.LBB104:
+ 112:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 733              		.loc 1 112 43 is_stmt 0
+ 734 0370 93072000 		li	a5,2
+ 735 0374 2338F500 		sd	a5,16(a0)
+ 736 0378 23300502 		sd	zero,32(a0)
+ 737 037c 23340502 		sd	zero,40(a0)
+ 738 0380 233C0502 		sd	zero,56(a0)
+ 739 0384 23300504 		sd	zero,64(a0)
+ 740 0388 23340504 		sd	zero,72(a0)
+ 741 038c 23380504 		sd	zero,80(a0)
+ 742 0390 233C0504 		sd	zero,88(a0)
+ 743 0394 23300506 		sd	zero,96(a0)
+ 744 0398 23040506 		sb	zero,104(a0)
+ 113:src/Code/Thread/TCB.cpp **** 
+ 745              		.loc 1 113 5 is_stmt 1
+ 113:src/Code/Thread/TCB.cpp **** 
+ 746              		.loc 1 113 30 is_stmt 0
+ 747 039c 97000000 		call	_ZN3TCB25initializeClassAttributesEPS_PFvPvES1_S1_
+ 747      E7800000 
+ 748              	.LVL75:
+ 118:src/Code/Thread/TCB.cpp **** }
+ 749              		.loc 1 118 5 is_stmt 1
+ 750 03a4 630C0900 		beqz	s2,.L38
+ 118:src/Code/Thread/TCB.cpp **** }
+ 751              		.loc 1 118 15 discriminator 1
+ 118:src/Code/Thread/TCB.cpp **** }
+ 752              		.loc 1 118 38 is_stmt 0 discriminator 1
+ 753 03a8 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 753      E7800000 
+ 754              	.LVL76:
+ 118:src/Code/Thread/TCB.cpp **** }
+ 755              		.loc 1 118 43 discriminator 1
+ 756 03b0 93850400 		mv	a1,s1
+ 757 03b4 97000000 		call	_ZN9Scheduler3putEP3TCB@plt
+ 757      E7800000 
+ 758              	.LVL77:
+ 759              	.L38:
+ 760              	.LBE104:
+ 119:src/Code/Thread/TCB.cpp **** 
+ 761              		.loc 1 119 1
+ 762 03bc 83308101 		ld	ra,24(sp)
+ 763              		.cfi_restore 1
+ 764 03c0 03340101 		ld	s0,16(sp)
+ 765              		.cfi_restore 8
+ 766              		.cfi_def_cfa 2, 32
+ 767 03c4 83348100 		ld	s1,8(sp)
+GAS LISTING /tmp/ccvQ3S00.s 			page 21
+
+
+ 768              		.cfi_restore 9
+ 769              	.LVL78:
+ 770 03c8 03390100 		ld	s2,0(sp)
+ 771              		.cfi_restore 18
+ 772              	.LVL79:
+ 773 03cc 13010102 		addi	sp,sp,32
+ 774              		.cfi_def_cfa_offset 0
+ 775 03d0 67800000 		jr	ra
+ 776              		.cfi_endproc
+ 777              	.LFE53:
+ 779              		.globl	_ZN3TCBC1EPFvPvES0_S0_
+ 780              		.set	_ZN3TCBC1EPFvPvES0_S0_,_ZN3TCBC2EPFvPvES0_S0_
+ 781              		.align	2
+ 782              		.globl	_ZN3TCBC2EPFvPvES0_S0_b
+ 784              	_ZN3TCBC2EPFvPvES0_S0_b:
+ 785              	.LFB56:
+ 121:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 786              		.loc 1 121 1 is_stmt 1
+ 787              		.cfi_startproc
+ 788              	.LVL80:
+ 789 03d4 130101FF 		addi	sp,sp,-16
+ 790              		.cfi_def_cfa_offset 16
+ 791 03d8 23341100 		sd	ra,8(sp)
+ 792 03dc 23308100 		sd	s0,0(sp)
+ 793              		.cfi_offset 1, -8
+ 794              		.cfi_offset 8, -16
+ 795 03e0 13040101 		addi	s0,sp,16
+ 796              		.cfi_def_cfa 8, 0
+ 797              	.LBB105:
+ 121:src/Code/Thread/TCB.cpp ****     initializeClassAttributes(this, body, arg, stack);
+ 798              		.loc 1 121 56 is_stmt 0
+ 799 03e4 13072000 		li	a4,2
+ 800              	.LVL81:
+ 801 03e8 2338E500 		sd	a4,16(a0)
+ 802 03ec 23300502 		sd	zero,32(a0)
+ 803 03f0 23340502 		sd	zero,40(a0)
+ 804 03f4 233C0502 		sd	zero,56(a0)
+ 805 03f8 23300504 		sd	zero,64(a0)
+ 806 03fc 23340504 		sd	zero,72(a0)
+ 807 0400 23380504 		sd	zero,80(a0)
+ 808 0404 233C0504 		sd	zero,88(a0)
+ 809 0408 23300506 		sd	zero,96(a0)
+ 810 040c 23040506 		sb	zero,104(a0)
+ 122:src/Code/Thread/TCB.cpp **** }
+ 811              		.loc 1 122 5 is_stmt 1
+ 122:src/Code/Thread/TCB.cpp **** }
+ 812              		.loc 1 122 30 is_stmt 0
+ 813 0410 97000000 		call	_ZN3TCB25initializeClassAttributesEPS_PFvPvES1_S1_
+ 813      E7800000 
+ 814              	.LVL82:
+ 815              	.LBE105:
+ 123:src/Code/Thread/TCB.cpp **** 
+ 816              		.loc 1 123 1
+ 817 0418 83308100 		ld	ra,8(sp)
+ 818              		.cfi_restore 1
+ 819 041c 03340100 		ld	s0,0(sp)
+ 820              		.cfi_restore 8
+GAS LISTING /tmp/ccvQ3S00.s 			page 22
+
+
+ 821              		.cfi_def_cfa 2, 16
+ 822 0420 13010101 		addi	sp,sp,16
+ 823              		.cfi_def_cfa_offset 0
+ 824 0424 67800000 		jr	ra
+ 825              		.cfi_endproc
+ 826              	.LFE56:
+ 828              		.globl	_ZN3TCBC1EPFvPvES0_S0_b
+ 829              		.set	_ZN3TCBC1EPFvPvES0_S0_b,_ZN3TCBC2EPFvPvES0_S0_b
+ 830              		.align	2
+ 831              		.globl	_ZN3TCB12createThreadEPFvPvES0_S0_b
+ 833              	_ZN3TCB12createThreadEPFvPvES0_S0_b:
+ 834              	.LFB44:
+  18:src/Code/Thread/TCB.cpp ****     if (cppApi) {
+ 835              		.loc 1 18 72 is_stmt 1
+ 836              		.cfi_startproc
+ 837              		.cfi_personality 0x9b,DW.ref.__gxx_personality_v0
+ 838              		.cfi_lsda 0x1b,.LLSDA44
+ 839              	.LVL83:
+ 840 0428 130101FC 		addi	sp,sp,-64
+ 841              		.cfi_def_cfa_offset 64
+ 842 042c 233C1102 		sd	ra,56(sp)
+ 843 0430 23388102 		sd	s0,48(sp)
+ 844 0434 23349102 		sd	s1,40(sp)
+ 845 0438 23302103 		sd	s2,32(sp)
+ 846 043c 233C3101 		sd	s3,24(sp)
+ 847 0440 23384101 		sd	s4,16(sp)
+ 848 0444 23345101 		sd	s5,8(sp)
+ 849              		.cfi_offset 1, -8
+ 850              		.cfi_offset 8, -16
+ 851              		.cfi_offset 9, -24
+ 852              		.cfi_offset 18, -32
+ 853              		.cfi_offset 19, -40
+ 854              		.cfi_offset 20, -48
+ 855              		.cfi_offset 21, -56
+ 856 0448 13040104 		addi	s0,sp,64
+ 857              		.cfi_def_cfa 8, 0
+ 858 044c 93090500 		mv	s3,a0
+ 859 0450 138A0500 		mv	s4,a1
+ 860 0454 930A0600 		mv	s5,a2
+  19:src/Code/Thread/TCB.cpp ****         return new TCB(body, arg, stack, cppApi);
+ 861              		.loc 1 19 5
+ 862 0458 638C0604 		beqz	a3,.L44
+ 863 045c 93840600 		mv	s1,a3
+  20:src/Code/Thread/TCB.cpp ****     } else {
+ 864              		.loc 1 20 9
+  20:src/Code/Thread/TCB.cpp ****     } else {
+ 865              		.loc 1 20 48 is_stmt 0
+ 866 0460 13050007 		li	a0,112
+ 867              	.LVL84:
+ 868              	.LEHB0:
+ 869 0464 97000000 		call	_ZN3TCBnwEm
+ 869      E7800000 
+ 870              	.LVL85:
+ 871 046c 13090500 		mv	s2,a0
+ 872 0470 13870400 		mv	a4,s1
+ 873 0474 93860A00 		mv	a3,s5
+ 874 0478 13060A00 		mv	a2,s4
+GAS LISTING /tmp/ccvQ3S00.s 			page 23
+
+
+ 875 047c 93850900 		mv	a1,s3
+ 876 0480 97000000 		call	_ZN3TCBC1EPFvPvES0_S0_b
+ 876      E7800000 
+ 877              	.LVL86:
+ 878              	.L43:
+  24:src/Code/Thread/TCB.cpp **** 
+ 879              		.loc 1 24 1
+ 880 0488 13050900 		mv	a0,s2
+ 881 048c 83308103 		ld	ra,56(sp)
+ 882              		.cfi_remember_state
+ 883              		.cfi_restore 1
+ 884 0490 03340103 		ld	s0,48(sp)
+ 885              		.cfi_restore 8
+ 886              		.cfi_def_cfa 2, 64
+ 887 0494 83348102 		ld	s1,40(sp)
+ 888              		.cfi_restore 9
+ 889 0498 03390102 		ld	s2,32(sp)
+ 890              		.cfi_restore 18
+ 891 049c 83398101 		ld	s3,24(sp)
+ 892              		.cfi_restore 19
+ 893              	.LVL87:
+ 894 04a0 033A0101 		ld	s4,16(sp)
+ 895              		.cfi_restore 20
+ 896              	.LVL88:
+ 897 04a4 833A8100 		ld	s5,8(sp)
+ 898              		.cfi_restore 21
+ 899              	.LVL89:
+ 900 04a8 13010104 		addi	sp,sp,64
+ 901              		.cfi_def_cfa_offset 0
+ 902 04ac 67800000 		jr	ra
+ 903              	.LVL90:
+ 904              	.L44:
+ 905              		.cfi_restore_state
+  22:src/Code/Thread/TCB.cpp ****     }
+ 906              		.loc 1 22 9 is_stmt 1
+  22:src/Code/Thread/TCB.cpp ****     }
+ 907              		.loc 1 22 40 is_stmt 0
+ 908 04b0 13050007 		li	a0,112
+ 909              	.LVL91:
+ 910 04b4 97000000 		call	_ZN3TCBnwEm
+ 910      E7800000 
+ 911              	.LVL92:
+ 912              	.LEHE0:
+ 913 04bc 13090500 		mv	s2,a0
+ 914 04c0 93860A00 		mv	a3,s5
+ 915 04c4 13060A00 		mv	a2,s4
+ 916 04c8 93850900 		mv	a1,s3
+ 917              	.LEHB1:
+ 918 04cc 97000000 		call	_ZN3TCBC1EPFvPvES0_S0_
+ 918      E7800000 
+ 919              	.LVL93:
+ 920              	.LEHE1:
+ 921 04d4 6FF05FFB 		j	.L43
+ 922              	.L47:
+ 923 04d8 93040500 		mv	s1,a0
+ 924 04dc 13050900 		mv	a0,s2
+ 925 04e0 97000000 		call	_ZN3TCBdlEPv
+GAS LISTING /tmp/ccvQ3S00.s 			page 24
+
+
+ 925      E7800000 
+ 926              	.LVL94:
+ 927 04e8 13850400 		mv	a0,s1
+ 928              	.LEHB2:
+ 929 04ec 97000000 		call	_Unwind_Resume@plt
+ 929      E7800000 
+ 930              	.LVL95:
+ 931              	.LEHE2:
+ 932              		.cfi_endproc
+ 933              	.LFE44:
+ 934              		.globl	__gxx_personality_v0
+ 935              		.section	.gcc_except_table,"a",@progbits
+ 936              	.LLSDA44:
+ 937 0000 FF       		.byte	0xff
+ 938 0001 FF       		.byte	0xff
+ 939 0002 03       		.byte	0x3
+ 940 0003 27       		.byte	0x27
+ 941 0004 00000000 		.4byte	.LEHB0-.LFB44
+ 942 0008 00000000 		.4byte	.LEHE0-.LEHB0
+ 943 000c 00000000 		.4byte	0
+ 944 0010 00       		.byte	0
+ 945 0011 00000000 		.4byte	.LEHB1-.LFB44
+ 946 0015 00000000 		.4byte	.LEHE1-.LEHB1
+ 947 0019 00000000 		.4byte	.L47-.LFB44
+ 948 001d 00       		.byte	0
+ 949 001e 00000000 		.4byte	.LEHB2-.LFB44
+ 950 0022 00000000 		.4byte	.LEHE2-.LEHB2
+ 951 0026 00000000 		.4byte	0
+ 952 002a 00       		.byte	0
+ 953              		.text
+ 955              		.align	2
+ 956              		.globl	_ZN3TCB13contextSwitchEPNS_7ContextES1_
+ 958              	_ZN3TCB13contextSwitchEPNS_7ContextES1_:
+ 959              	.LFB61:
+ 150:src/Code/Thread/TCB.cpp **** 
+ 151:src/Code/Thread/TCB.cpp **** void TCB::contextSwitch(TCB::Context *oldContext, TCB::Context *runningContext) {
+ 960              		.loc 1 151 81 is_stmt 1
+ 961              		.cfi_startproc
+ 962              	.LVL96:
+ 963 04f4 130101FF 		addi	sp,sp,-16
+ 964              		.cfi_def_cfa_offset 16
+ 965 04f8 23348100 		sd	s0,8(sp)
+ 966              		.cfi_offset 8, -8
+ 967 04fc 13040101 		addi	s0,sp,16
+ 968              		.cfi_def_cfa 8, 0
+ 152:src/Code/Thread/TCB.cpp ****     // prvi parametar funkcije (pokazivac na strukturu stare niti - oldContext) se prosledjuje kroz
+ 153:src/Code/Thread/TCB.cpp ****     // cuvanje registara ra i sp tekuce niti u njenoj strukturi
+ 154:src/Code/Thread/TCB.cpp ****     __asm__ volatile ("sd ra, 0*8(a0)");
+ 969              		.loc 1 154 5
+ 970              		.loc 1 154 40 is_stmt 0
+ 971              	#APP
+ 972              	# 154 "src/Code/Thread/TCB.cpp" 1
+ 155              	    __asm__ volatile ("sd sp, 1*8(a0)");
+ 973              		sd ra, 0*8(a0)
+ 974              	# 0 "" 2
+ 975              		.loc 1 155 5 is_stmt 1
+ 976              		.loc 1 155 40 is_stmt 0
+GAS LISTING /tmp/ccvQ3S00.s 			page 25
+
+
+ 977              	# 155 "src/Code/Thread/TCB.cpp" 1
+ 156              	
+ 157:src/Code/Thread/TCB.cpp ****     // drugi parametar funkcije (pokazivac na strukturu nove niti - runningContext) se prosledjuje 
+ 158:src/Code/Thread/TCB.cpp ****     // restauracija registara ra i sp nove niti iz njene strukture
+ 159:src/Code/Thread/TCB.cpp ****     __asm__ volatile ("ld ra, 0*8(a1)");
+ 978              		sd sp, 1*8(a0)
+ 979              	# 0 "" 2
+ 980              		.loc 1 159 5 is_stmt 1
+ 981              		.loc 1 159 40 is_stmt 0
+ 982              	# 159 "src/Code/Thread/TCB.cpp" 1
+ 160              	    __asm__ volatile ("ld sp, 1*8(a1)");
+ 983              		ld ra, 0*8(a1)
+ 984              	# 0 "" 2
+ 985              		.loc 1 160 5 is_stmt 1
+ 986              		.loc 1 160 40 is_stmt 0
+ 987              	# 160 "src/Code/Thread/TCB.cpp" 1
+ 161              	}...
+ 988              		ld sp, 1*8(a1)
+ 989              	# 0 "" 2
+ 990              		.loc 1 161 1
+ 991              	#NO_APP
+ 992 0510 03348100 		ld	s0,8(sp)
+ 993              		.cfi_restore 8
+ 994              		.cfi_def_cfa 2, 16
+ 995 0514 13010101 		addi	sp,sp,16
+ 996              		.cfi_def_cfa_offset 0
+ 997 0518 67800000 		jr	ra
+ 998              		.cfi_endproc
+ 999              	.LFE61:
+ 1001              		.align	2
+ 1002              		.globl	_ZN3TCB8dispatchEv
+ 1004              	_ZN3TCB8dispatchEv:
+ 1005              	.LFB58:
+ 126:src/Code/Thread/TCB.cpp **** void TCB::dispatch() {
+ 1006              		.loc 1 126 22 is_stmt 1
+ 1007              		.cfi_startproc
+ 1008 051c 130101FE 		addi	sp,sp,-32
+ 1009              		.cfi_def_cfa_offset 32
+ 1010 0520 233C1100 		sd	ra,24(sp)
+ 1011 0524 23388100 		sd	s0,16(sp)
+ 1012 0528 23349100 		sd	s1,8(sp)
+ 1013              		.cfi_offset 1, -8
+ 1014              		.cfi_offset 8, -16
+ 1015              		.cfi_offset 9, -24
+ 1016 052c 13040102 		addi	s0,sp,32
+ 1017              		.cfi_def_cfa 8, 0
+ 127:src/Code/Thread/TCB.cpp ****     TCB* oldThread = runningThread;
+ 1018              		.loc 1 127 5
+ 127:src/Code/Thread/TCB.cpp ****     TCB* oldThread = runningThread;
+ 1019              		.loc 1 127 10 is_stmt 0
+ 1020 0530 97040000 		ld	s1,.LANCHOR0
+ 1020      83B40400 
+ 1021              	.LVL97:
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+ 1022              		.loc 1 128 5 is_stmt 1
+ 1023              	.LBB106:
+ 1024              	.LBB107:
+GAS LISTING /tmp/ccvQ3S00.s 			page 26
+
+
+  21:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setFinished(bool value) { finished = value; }
+ 1025              		.loc 2 21 32
+  21:src/Code/Thread/../../../h/Code/Thread/TCB.hpp ****     void setFinished(bool value) { finished = value; }
+ 1026              		.loc 2 21 39 is_stmt 0
+ 1027 0538 83C70403 		lbu	a5,48(s1)
+ 1028              	.LVL98:
+ 1029              	.LBE107:
+ 1030              	.LBE106:
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+ 1031              		.loc 1 128 5
+ 1032 053c 63800704 		beqz	a5,.L54
+ 1033              	.L52:
+ 129:src/Code/Thread/TCB.cpp ****     runningThread = Scheduler::getInstance().get();
+ 1034              		.loc 1 129 5 is_stmt 1
+ 129:src/Code/Thread/TCB.cpp ****     runningThread = Scheduler::getInstance().get();
+ 1035              		.loc 1 129 44 is_stmt 0
+ 1036 0540 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 1036      E7800000 
+ 1037              	.LVL99:
+ 129:src/Code/Thread/TCB.cpp ****     runningThread = Scheduler::getInstance().get();
+ 1038              		.loc 1 129 49
+ 1039 0548 97000000 		call	_ZN9Scheduler3getEv@plt
+ 1039      E7800000 
+ 1040              	.LVL100:
+ 129:src/Code/Thread/TCB.cpp ****     runningThread = Scheduler::getInstance().get();
+ 1041              		.loc 1 129 19
+ 1042 0550 97070000 		sd	a0,.LANCHOR0,a5
+ 1042      23B0A700 
+ 130:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &runningThread->context);
+ 1043              		.loc 1 130 5 is_stmt 1
+ 130:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &runningThread->context);
+ 1044              		.loc 1 130 23 is_stmt 0
+ 1045 0558 93050502 		addi	a1,a0,32
+ 1046 055c 13850402 		addi	a0,s1,32
+ 1047 0560 97000000 		call	_ZN3TCB13contextSwitchEPNS_7ContextES1_
+ 1047      E7800000 
+ 1048              	.LVL101:
+ 134:src/Code/Thread/TCB.cpp **** }
+ 1049              		.loc 1 134 1
+ 1050 0568 83308101 		ld	ra,24(sp)
+ 1051              		.cfi_remember_state
+ 1052              		.cfi_restore 1
+ 1053 056c 03340101 		ld	s0,16(sp)
+ 1054              		.cfi_restore 8
+ 1055              		.cfi_def_cfa 2, 32
+ 1056 0570 83348100 		ld	s1,8(sp)
+ 1057              		.cfi_restore 9
+ 1058              	.LVL102:
+ 1059 0574 13010102 		addi	sp,sp,32
+ 1060              		.cfi_def_cfa_offset 0
+ 1061 0578 67800000 		jr	ra
+ 1062              	.LVL103:
+ 1063              	.L54:
+ 1064              		.cfi_restore_state
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+ 1065              		.loc 1 128 36 is_stmt 1 discriminator 1
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+GAS LISTING /tmp/ccvQ3S00.s 			page 27
+
+
+ 1066              		.loc 1 128 59 is_stmt 0 discriminator 1
+ 1067 057c 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 1067      E7800000 
+ 1068              	.LVL104:
+ 128:src/Code/Thread/TCB.cpp ****     if (!oldThread->getFinished()) Scheduler::getInstance().put(oldThread);
+ 1069              		.loc 1 128 64 discriminator 1
+ 1070 0584 93850400 		mv	a1,s1
+ 1071 0588 97000000 		call	_ZN9Scheduler3putEP3TCB@plt
+ 1071      E7800000 
+ 1072              	.LVL105:
+ 1073 0590 6FF01FFB 		j	.L52
+ 1074              		.cfi_endproc
+ 1075              	.LFE58:
+ 1077              		.align	2
+ 1078              		.globl	_ZN3TCB20suspendCurrentThreadEv
+ 1080              	_ZN3TCB20suspendCurrentThreadEv:
+ 1081              	.LFB59:
+ 136:src/Code/Thread/TCB.cpp **** void TCB::suspendCurrentThread() {
+ 1082              		.loc 1 136 34 is_stmt 1
+ 1083              		.cfi_startproc
+ 1084 0594 130101FE 		addi	sp,sp,-32
+ 1085              		.cfi_def_cfa_offset 32
+ 1086 0598 233C1100 		sd	ra,24(sp)
+ 1087 059c 23388100 		sd	s0,16(sp)
+ 1088 05a0 23349100 		sd	s1,8(sp)
+ 1089 05a4 23302101 		sd	s2,0(sp)
+ 1090              		.cfi_offset 1, -8
+ 1091              		.cfi_offset 8, -16
+ 1092              		.cfi_offset 9, -24
+ 1093              		.cfi_offset 18, -32
+ 1094 05a8 13040102 		addi	s0,sp,32
+ 1095              		.cfi_def_cfa 8, 0
+ 137:src/Code/Thread/TCB.cpp ****     TCB* oldThread = TCB::runningThread;
+ 1096              		.loc 1 137 5
+ 137:src/Code/Thread/TCB.cpp ****     TCB* oldThread = TCB::runningThread;
+ 1097              		.loc 1 137 10 is_stmt 0
+ 1098 05ac 97040000 		lla	s1,.LANCHOR0
+ 1098      93840400 
+ 1099 05b4 03B90400 		ld	s2,0(s1)
+ 1100              	.LVL106:
+ 138:src/Code/Thread/TCB.cpp ****     TCB::runningThread = Scheduler::getInstance().get();
+ 1101              		.loc 1 138 5 is_stmt 1
+ 138:src/Code/Thread/TCB.cpp ****     TCB::runningThread = Scheduler::getInstance().get();
+ 1102              		.loc 1 138 49 is_stmt 0
+ 1103 05b8 97000000 		call	_ZN9Scheduler11getInstanceEv@plt
+ 1103      E7800000 
+ 1104              	.LVL107:
+ 138:src/Code/Thread/TCB.cpp ****     TCB::runningThread = Scheduler::getInstance().get();
+ 1105              		.loc 1 138 54
+ 1106 05c0 97000000 		call	_ZN9Scheduler3getEv@plt
+ 1106      E7800000 
+ 1107              	.LVL108:
+ 138:src/Code/Thread/TCB.cpp ****     TCB::runningThread = Scheduler::getInstance().get();
+ 1108              		.loc 1 138 24
+ 1109 05c8 23B0A400 		sd	a0,0(s1)
+ 139:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &TCB::runningThread->context);
+ 1110              		.loc 1 139 5 is_stmt 1
+GAS LISTING /tmp/ccvQ3S00.s 			page 28
+
+
+ 139:src/Code/Thread/TCB.cpp ****     TCB::contextSwitch(&oldThread->context, &TCB::runningThread->context);
+ 1111              		.loc 1 139 23 is_stmt 0
+ 1112 05cc 93050502 		addi	a1,a0,32
+ 1113 05d0 13050902 		addi	a0,s2,32
+ 1114 05d4 97000000 		call	_ZN3TCB13contextSwitchEPNS_7ContextES1_
+ 1114      E7800000 
+ 1115              	.LVL109:
+ 140:src/Code/Thread/TCB.cpp **** }
+ 1116              		.loc 1 140 1
+ 1117 05dc 83308101 		ld	ra,24(sp)
+ 1118              		.cfi_restore 1
+ 1119 05e0 03340101 		ld	s0,16(sp)
+ 1120              		.cfi_restore 8
+ 1121              		.cfi_def_cfa 2, 32
+ 1122 05e4 83348100 		ld	s1,8(sp)
+ 1123              		.cfi_restore 9
+ 1124 05e8 03390100 		ld	s2,0(sp)
+ 1125              		.cfi_restore 18
+ 1126              	.LVL110:
+ 1127 05ec 13010102 		addi	sp,sp,32
+ 1128              		.cfi_def_cfa_offset 0
+ 1129 05f0 67800000 		jr	ra
+ 1130              		.cfi_endproc
+ 1131              	.LFE59:
+ 1133              		.globl	_ZN3TCB9sleepTailE
+ 1134              		.globl	_ZN3TCB9sleepHeadE
+ 1135              		.globl	_ZN3TCB16timeSliceCounterE
+ 1136              		.globl	_ZN3TCB13runningThreadE
+ 1137              		.globl	_ZN3TCB14staticThreadIdE
+ 1138              		.bss
+ 1139              		.align	3
+ 1140              		.set	.LANCHOR0,. + 0
+ 1143              	_ZN3TCB13runningThreadE:
+ 1144 0000 00000000 		.zero	8
+ 1144      00000000 
+ 1147              	_ZN3TCB9sleepHeadE:
+ 1148 0008 00000000 		.zero	8
+ 1148      00000000 
+ 1151              	_ZN3TCB9sleepTailE:
+ 1152 0010 00000000 		.zero	8
+ 1152      00000000 
+ 1155              	_ZN3TCB14staticThreadIdE:
+ 1156 0018 00000000 		.zero	4
+ 1157 001c 00000000 		.zero	4
+ 1160              	_ZN3TCB16timeSliceCounterE:
+ 1161 0020 00000000 		.zero	8
+ 1161      00000000 
+ 1162              		.text
+ 1163              	.Letext0:
+ 1164              		.file 3 "src/Code/Thread/../../../h/Code/Thread/../../../lib/hw.h"
+ 1165              		.file 4 "src/Code/Thread/../../../h/Code/Thread/../Scheduler/Scheduler.hpp"
+ 1166              		.file 5 "src/Code/Thread/../../../h/Code/Thread/../InterruptHandling/Riscv.hpp"
+ 1167              		.file 6 "src/Code/Thread/../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
+ 1168              		.file 7 "src/Code/Thread/../../../h/Code/SystemCalls/syscall_c.h"
+ 5874              		.align	3
+ 5877              	DW.ref.__gxx_personality_v0:
+ 5878 0000 00000000 		.dword	__gxx_personality_v0
+GAS LISTING /tmp/ccvQ3S00.s 			page 29
+
+
+ 5878      00000000 
+ 5879              		.ident	"GCC: (Ubuntu 9.4.0-1ubuntu1~20.04) 9.4.0"
+ 5880              		.section	.note.GNU-stack,"",@progbits
+GAS LISTING /tmp/ccvQ3S00.s 			page 30
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 TCB.cpp
+     /tmp/ccvQ3S00.s:9      .text:0000000000000000 _ZN3TCB13threadWrapperEv
+     /tmp/ccvQ3S00.s:13     .text:0000000000000000 .L0 
+     /tmp/ccvQ3S00.s:14     .text:0000000000000000 .L0 
+     /tmp/ccvQ3S00.s:15     .text:0000000000000004 .L0 
+     /tmp/ccvQ3S00.s:19     .text:0000000000000010 .L0 
+     /tmp/ccvQ3S00.s:20     .text:0000000000000010 .L0 
+     /tmp/ccvQ3S00.s:21     .text:0000000000000010 .L0 
+     /tmp/ccvQ3S00.s:23     .text:0000000000000014 .L0 
+     /tmp/ccvQ3S00.s:25     .text:0000000000000014 .L0 
+     /tmp/ccvQ3S00.s:26     .text:0000000000000014 .L0 
+     /tmp/ccvQ3S00.s:29     .text:000000000000001c .L0 
+     /tmp/ccvQ3S00.s:30     .text:000000000000001c .L0 
+     /tmp/ccvQ3S00.s:33     .text:0000000000000024 .L0 
+     /tmp/ccvQ3S00.s:34     .text:0000000000000024 .L0 
+     /tmp/ccvQ3S00.s:38     .text:0000000000000034 .L0 
+     /tmp/ccvQ3S00.s:42     .text:000000000000003c .L0 
+     /tmp/ccvQ3S00.s:43     .text:000000000000003c .L0 
+     /tmp/ccvQ3S00.s:49     .text:0000000000000040 .L0 
+     /tmp/ccvQ3S00.s:50     .text:0000000000000040 .L0 
+     /tmp/ccvQ3S00.s:55     .text:0000000000000044 .L0 
+     /tmp/ccvQ3S00.s:58     .text:0000000000000048 .L0 
+     /tmp/ccvQ3S00.s:59     .text:000000000000004c .L0 
+     /tmp/ccvQ3S00.s:60     .text:000000000000004c .L0 
+     /tmp/ccvQ3S00.s:62     .text:0000000000000050 .L0 
+     /tmp/ccvQ3S00.s:63     .text:0000000000000050 .L0 
+     /tmp/ccvQ3S00.s:65     .text:0000000000000054 .L0 
+     /tmp/ccvQ3S00.s:67     .text:0000000000000058 .L0 
+     /tmp/ccvQ3S00.s:70     .text:000000000000005c .L0 
+     /tmp/ccvQ3S00.s:72     .text:000000000000005c .L0 
+     /tmp/ccvQ3S00.s:73     .text:000000000000005c .L0 
+     /tmp/ccvQ3S00.s:76     .text:0000000000000064 .L0 
+     /tmp/ccvQ3S00.s:77     .text:0000000000000068 .L0 
+     /tmp/ccvQ3S00.s:83     .text:0000000000000068 _ZN3TCB17insertSleepThreadEm
+     /tmp/ccvQ3S00.s:86     .text:0000000000000068 .L0 
+     /tmp/ccvQ3S00.s:88     .text:0000000000000068 .L0 
+     /tmp/ccvQ3S00.s:89     .text:000000000000006c .L0 
+     /tmp/ccvQ3S00.s:91     .text:0000000000000070 .L0 
+     /tmp/ccvQ3S00.s:93     .text:0000000000000074 .L0 
+     /tmp/ccvQ3S00.s:95     .text:0000000000000074 .L0 
+     /tmp/ccvQ3S00.s:96     .text:0000000000000074 .L0 
+     /tmp/ccvQ3S00.s:98     .text:000000000000007c .L0 
+     /tmp/ccvQ3S00.s:100    .text:0000000000000080 .L0 
+     /tmp/ccvQ3S00.s:102    .text:0000000000000088 .L0 
+     /tmp/ccvQ3S00.s:104    .text:000000000000008c .L0 
+     /tmp/ccvQ3S00.s:109    .text:0000000000000090 .L0 
+     /tmp/ccvQ3S00.s:114    .text:0000000000000094 .L0 
+     /tmp/ccvQ3S00.s:115    .text:0000000000000094 .L0 
+     /tmp/ccvQ3S00.s:116    .text:0000000000000094 .L0 
+     /tmp/ccvQ3S00.s:121    .text:0000000000000098 .L0 
+     /tmp/ccvQ3S00.s:124    .text:000000000000009c .L0 
+     /tmp/ccvQ3S00.s:129    .text:00000000000000a0 .L0 
+     /tmp/ccvQ3S00.s:130    .text:00000000000000a0 .L0 
+     /tmp/ccvQ3S00.s:131    .text:00000000000000a0 .L0 
+     /tmp/ccvQ3S00.s:136    .text:00000000000000a4 .L0 
+     /tmp/ccvQ3S00.s:141    .text:00000000000000a8 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 31
+
+
+     /tmp/ccvQ3S00.s:142    .text:00000000000000a8 .L0 
+     /tmp/ccvQ3S00.s:146    .text:00000000000000b8 .L0 
+     /tmp/ccvQ3S00.s:151    .text:00000000000000bc .L0 
+     /tmp/ccvQ3S00.s:152    .text:00000000000000bc .L0 
+     /tmp/ccvQ3S00.s:153    .text:00000000000000bc .L0 
+     /tmp/ccvQ3S00.s:158    .text:00000000000000c0 .L0 
+     /tmp/ccvQ3S00.s:163    .text:00000000000000c4 .L0 
+     /tmp/ccvQ3S00.s:164    .text:00000000000000c4 .L0 
+     /tmp/ccvQ3S00.s:169    .text:00000000000000cc .L0 
+     /tmp/ccvQ3S00.s:170    .text:00000000000000cc .L0 
+     /tmp/ccvQ3S00.s:177    .text:00000000000000d0 .L0 
+     /tmp/ccvQ3S00.s:178    .text:00000000000000d0 .L0 
+     /tmp/ccvQ3S00.s:179    .text:00000000000000d0 .L0 
+     /tmp/ccvQ3S00.s:186    .text:00000000000000d4 .L0 
+     /tmp/ccvQ3S00.s:187    .text:00000000000000d4 .L0 
+     /tmp/ccvQ3S00.s:193    .text:00000000000000d8 .L0 
+     /tmp/ccvQ3S00.s:195    .text:00000000000000d8 .L0 
+     /tmp/ccvQ3S00.s:196    .text:00000000000000d8 .L0 
+     /tmp/ccvQ3S00.s:200    .text:00000000000000dc .L0 
+     /tmp/ccvQ3S00.s:204    .text:00000000000000dc .L0 
+     /tmp/ccvQ3S00.s:205    .text:00000000000000dc .L0 
+     /tmp/ccvQ3S00.s:206    .text:00000000000000dc .L0 
+     /tmp/ccvQ3S00.s:213    .text:00000000000000e0 .L0 
+     /tmp/ccvQ3S00.s:214    .text:00000000000000e0 .L0 
+     /tmp/ccvQ3S00.s:215    .text:00000000000000e0 .L0 
+     /tmp/ccvQ3S00.s:220    .text:00000000000000e4 .L0 
+     /tmp/ccvQ3S00.s:223    .text:00000000000000e8 .L0 
+     /tmp/ccvQ3S00.s:228    .text:00000000000000ec .L0 
+     /tmp/ccvQ3S00.s:229    .text:00000000000000ec .L0 
+     /tmp/ccvQ3S00.s:237    .text:00000000000000f0 .L0 
+     /tmp/ccvQ3S00.s:238    .text:00000000000000f0 .L0 
+     /tmp/ccvQ3S00.s:239    .text:00000000000000f0 .L0 
+     /tmp/ccvQ3S00.s:244    .text:00000000000000f4 .L0 
+     /tmp/ccvQ3S00.s:250    .text:00000000000000f8 .L0 
+     /tmp/ccvQ3S00.s:251    .text:00000000000000f8 .L0 
+     /tmp/ccvQ3S00.s:252    .text:00000000000000f8 .L0 
+     /tmp/ccvQ3S00.s:257    .text:00000000000000fc .L0 
+     /tmp/ccvQ3S00.s:258    .text:00000000000000fc .L0 
+     /tmp/ccvQ3S00.s:263    .text:0000000000000100 .L0 
+     /tmp/ccvQ3S00.s:264    .text:0000000000000100 .L0 
+     /tmp/ccvQ3S00.s:269    .text:0000000000000104 .L0 
+     /tmp/ccvQ3S00.s:270    .text:0000000000000104 .L0 
+     /tmp/ccvQ3S00.s:276    .text:0000000000000110 .L0 
+     /tmp/ccvQ3S00.s:277    .text:0000000000000110 .L0 
+     /tmp/ccvQ3S00.s:283    .text:000000000000011c .L0 
+     /tmp/ccvQ3S00.s:284    .text:000000000000011c .L0 
+     /tmp/ccvQ3S00.s:291    .text:0000000000000120 .L0 
+     /tmp/ccvQ3S00.s:292    .text:0000000000000120 .L0 
+     /tmp/ccvQ3S00.s:293    .text:0000000000000120 .L0 
+     /tmp/ccvQ3S00.s:298    .text:0000000000000124 .L0 
+     /tmp/ccvQ3S00.s:299    .text:0000000000000124 .L0 
+     /tmp/ccvQ3S00.s:304    .text:0000000000000128 .L0 
+     /tmp/ccvQ3S00.s:305    .text:0000000000000128 .L0 
+     /tmp/ccvQ3S00.s:310    .text:000000000000012c .L0 
+     /tmp/ccvQ3S00.s:311    .text:000000000000012c .L0 
+     /tmp/ccvQ3S00.s:314    .text:0000000000000130 .L0 
+     /tmp/ccvQ3S00.s:315    .text:0000000000000134 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 32
+
+
+     /tmp/ccvQ3S00.s:316    .text:0000000000000134 .L0 
+     /tmp/ccvQ3S00.s:318    .text:0000000000000138 .L0 
+     /tmp/ccvQ3S00.s:320    .text:000000000000013c .L0 
+     /tmp/ccvQ3S00.s:326    .text:000000000000013c _ZN3TCB21updateSleepThreadListEv
+     /tmp/ccvQ3S00.s:329    .text:000000000000013c .L0 
+     /tmp/ccvQ3S00.s:330    .text:000000000000013c .L0 
+     /tmp/ccvQ3S00.s:331    .text:0000000000000140 .L0 
+     /tmp/ccvQ3S00.s:336    .text:0000000000000150 .L0 
+     /tmp/ccvQ3S00.s:337    .text:0000000000000150 .L0 
+     /tmp/ccvQ3S00.s:338    .text:0000000000000150 .L0 
+     /tmp/ccvQ3S00.s:339    .text:0000000000000150 .L0 
+     /tmp/ccvQ3S00.s:341    .text:0000000000000154 .L0 
+     /tmp/ccvQ3S00.s:343    .text:0000000000000154 .L0 
+     /tmp/ccvQ3S00.s:344    .text:0000000000000154 .L0 
+     /tmp/ccvQ3S00.s:346    .text:000000000000015c .L0 
+     /tmp/ccvQ3S00.s:348    .text:0000000000000160 .L0 
+     /tmp/ccvQ3S00.s:350    .text:0000000000000168 .L0 
+     /tmp/ccvQ3S00.s:355    .text:000000000000016c .L0 
+     /tmp/ccvQ3S00.s:356    .text:000000000000016c .L0 
+     /tmp/ccvQ3S00.s:357    .text:000000000000016c .L0 
+     /tmp/ccvQ3S00.s:362    .text:0000000000000170 .L0 
+     /tmp/ccvQ3S00.s:367    .text:0000000000000174 .L0 
+     /tmp/ccvQ3S00.s:368    .text:0000000000000174 .L0 
+     /tmp/ccvQ3S00.s:373    .text:0000000000000178 .L0 
+     /tmp/ccvQ3S00.s:376    .text:000000000000017c .L0 
+     /tmp/ccvQ3S00.s:380    .text:0000000000000180 .L0 
+     /tmp/ccvQ3S00.s:381    .text:0000000000000184 .L0 
+     /tmp/ccvQ3S00.s:382    .text:0000000000000184 .L0 
+     /tmp/ccvQ3S00.s:384    .text:0000000000000188 .L0 
+     /tmp/ccvQ3S00.s:385    .text:0000000000000188 .L0 
+     /tmp/ccvQ3S00.s:387    .text:000000000000018c .L0 
+     /tmp/ccvQ3S00.s:389    .text:0000000000000190 .L0 
+     /tmp/ccvQ3S00.s:391    .text:0000000000000194 .L0 
+     /tmp/ccvQ3S00.s:395    .text:0000000000000198 .L0 
+     /tmp/ccvQ3S00.s:400    .text:0000000000000198 .L0 
+     /tmp/ccvQ3S00.s:401    .text:0000000000000198 .L0 
+     /tmp/ccvQ3S00.s:402    .text:0000000000000198 .L0 
+     /tmp/ccvQ3S00.s:407    .text:000000000000019c .L0 
+     /tmp/ccvQ3S00.s:408    .text:000000000000019c .L0 
+     /tmp/ccvQ3S00.s:411    .text:00000000000001a4 .L0 
+     /tmp/ccvQ3S00.s:415    .text:00000000000001b0 .L0 
+     /tmp/ccvQ3S00.s:420    .text:00000000000001b4 .L0 
+     /tmp/ccvQ3S00.s:421    .text:00000000000001b4 .L0 
+     /tmp/ccvQ3S00.s:426    .text:00000000000001b8 .L0 
+     /tmp/ccvQ3S00.s:427    .text:00000000000001b8 .L0 
+     /tmp/ccvQ3S00.s:432    .text:00000000000001bc .L0 
+     /tmp/ccvQ3S00.s:436    .text:00000000000001c0 .L0 
+     /tmp/ccvQ3S00.s:439    .text:00000000000001c0 .L0 
+     /tmp/ccvQ3S00.s:440    .text:00000000000001c0 .L0 
+     /tmp/ccvQ3S00.s:441    .text:00000000000001c0 .L0 
+     /tmp/ccvQ3S00.s:446    .text:00000000000001c4 .L0 
+     /tmp/ccvQ3S00.s:447    .text:00000000000001c4 .L0 
+     /tmp/ccvQ3S00.s:449    .text:00000000000001cc .L0 
+     /tmp/ccvQ3S00.s:454    .text:00000000000001d0 .L0 
+     /tmp/ccvQ3S00.s:455    .text:00000000000001d0 .L0 
+     /tmp/ccvQ3S00.s:456    .text:00000000000001d0 .L0 
+     /tmp/ccvQ3S00.s:458    .text:00000000000001d4 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 33
+
+
+     /tmp/ccvQ3S00.s:465    .text:00000000000001d8 .L0 
+     /tmp/ccvQ3S00.s:466    .text:00000000000001d8 .L0 
+     /tmp/ccvQ3S00.s:469    .text:00000000000001e4 .L0 
+     /tmp/ccvQ3S00.s:471    .text:00000000000001ec .L0 
+     /tmp/ccvQ3S00.s:477    .text:00000000000001ec _ZN3TCBnwEm
+     /tmp/ccvQ3S00.s:480    .text:00000000000001ec .L0 
+     /tmp/ccvQ3S00.s:482    .text:00000000000001ec .L0 
+     /tmp/ccvQ3S00.s:483    .text:00000000000001f0 .L0 
+     /tmp/ccvQ3S00.s:487    .text:00000000000001fc .L0 
+     /tmp/ccvQ3S00.s:488    .text:00000000000001fc .L0 
+     /tmp/ccvQ3S00.s:489    .text:00000000000001fc .L0 
+     /tmp/ccvQ3S00.s:491    .text:0000000000000200 .L0 
+     /tmp/ccvQ3S00.s:494    .text:0000000000000204 .L0 
+     /tmp/ccvQ3S00.s:495    .text:0000000000000204 .L0 
+     /tmp/ccvQ3S00.s:498    .text:000000000000020c .L0 
+     /tmp/ccvQ3S00.s:502    .text:0000000000000218 .L0 
+     /tmp/ccvQ3S00.s:503    .text:0000000000000218 .L0 
+     /tmp/ccvQ3S00.s:504    .text:000000000000021c .L0 
+     /tmp/ccvQ3S00.s:506    .text:0000000000000220 .L0 
+     /tmp/ccvQ3S00.s:507    .text:0000000000000220 .L0 
+     /tmp/ccvQ3S00.s:509    .text:0000000000000224 .L0 
+     /tmp/ccvQ3S00.s:512    .text:0000000000000228 .L0 
+     /tmp/ccvQ3S00.s:514    .text:000000000000022c .L0 
+     /tmp/ccvQ3S00.s:520    .text:000000000000022c _ZN3TCBnaEm
+     /tmp/ccvQ3S00.s:523    .text:000000000000022c .L0 
+     /tmp/ccvQ3S00.s:525    .text:000000000000022c .L0 
+     /tmp/ccvQ3S00.s:526    .text:0000000000000230 .L0 
+     /tmp/ccvQ3S00.s:530    .text:000000000000023c .L0 
+     /tmp/ccvQ3S00.s:531    .text:000000000000023c .L0 
+     /tmp/ccvQ3S00.s:532    .text:000000000000023c .L0 
+     /tmp/ccvQ3S00.s:534    .text:0000000000000240 .L0 
+     /tmp/ccvQ3S00.s:537    .text:0000000000000244 .L0 
+     /tmp/ccvQ3S00.s:538    .text:0000000000000244 .L0 
+     /tmp/ccvQ3S00.s:541    .text:000000000000024c .L0 
+     /tmp/ccvQ3S00.s:545    .text:0000000000000258 .L0 
+     /tmp/ccvQ3S00.s:546    .text:0000000000000258 .L0 
+     /tmp/ccvQ3S00.s:547    .text:000000000000025c .L0 
+     /tmp/ccvQ3S00.s:549    .text:0000000000000260 .L0 
+     /tmp/ccvQ3S00.s:550    .text:0000000000000260 .L0 
+     /tmp/ccvQ3S00.s:552    .text:0000000000000264 .L0 
+     /tmp/ccvQ3S00.s:555    .text:0000000000000268 .L0 
+     /tmp/ccvQ3S00.s:557    .text:000000000000026c .L0 
+     /tmp/ccvQ3S00.s:563    .text:000000000000026c _ZN3TCBdlEPv
+     /tmp/ccvQ3S00.s:566    .text:000000000000026c .L0 
+     /tmp/ccvQ3S00.s:568    .text:000000000000026c .L0 
+     /tmp/ccvQ3S00.s:569    .text:0000000000000270 .L0 
+     /tmp/ccvQ3S00.s:573    .text:000000000000027c .L0 
+     /tmp/ccvQ3S00.s:574    .text:000000000000027c .L0 
+     /tmp/ccvQ3S00.s:575    .text:000000000000027c .L0 
+     /tmp/ccvQ3S00.s:577    .text:0000000000000280 .L0 
+     /tmp/ccvQ3S00.s:580    .text:0000000000000284 .L0 
+     /tmp/ccvQ3S00.s:581    .text:0000000000000284 .L0 
+     /tmp/ccvQ3S00.s:584    .text:000000000000028c .L0 
+     /tmp/ccvQ3S00.s:588    .text:0000000000000298 .L0 
+     /tmp/ccvQ3S00.s:589    .text:000000000000029c .L0 
+     /tmp/ccvQ3S00.s:591    .text:00000000000002a0 .L0 
+     /tmp/ccvQ3S00.s:592    .text:00000000000002a0 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 34
+
+
+     /tmp/ccvQ3S00.s:594    .text:00000000000002a4 .L0 
+     /tmp/ccvQ3S00.s:597    .text:00000000000002a8 .L0 
+     /tmp/ccvQ3S00.s:599    .text:00000000000002ac .L0 
+     /tmp/ccvQ3S00.s:605    .text:00000000000002ac _ZN3TCBdaEPv
+     /tmp/ccvQ3S00.s:608    .text:00000000000002ac .L0 
+     /tmp/ccvQ3S00.s:610    .text:00000000000002ac .L0 
+     /tmp/ccvQ3S00.s:611    .text:00000000000002b0 .L0 
+     /tmp/ccvQ3S00.s:615    .text:00000000000002bc .L0 
+     /tmp/ccvQ3S00.s:616    .text:00000000000002bc .L0 
+     /tmp/ccvQ3S00.s:617    .text:00000000000002bc .L0 
+     /tmp/ccvQ3S00.s:619    .text:00000000000002c0 .L0 
+     /tmp/ccvQ3S00.s:622    .text:00000000000002c4 .L0 
+     /tmp/ccvQ3S00.s:623    .text:00000000000002c4 .L0 
+     /tmp/ccvQ3S00.s:626    .text:00000000000002cc .L0 
+     /tmp/ccvQ3S00.s:630    .text:00000000000002d8 .L0 
+     /tmp/ccvQ3S00.s:631    .text:00000000000002dc .L0 
+     /tmp/ccvQ3S00.s:633    .text:00000000000002e0 .L0 
+     /tmp/ccvQ3S00.s:634    .text:00000000000002e0 .L0 
+     /tmp/ccvQ3S00.s:636    .text:00000000000002e4 .L0 
+     /tmp/ccvQ3S00.s:639    .text:00000000000002e8 .L0 
+     /tmp/ccvQ3S00.s:641    .text:00000000000002ec .L0 
+     /tmp/ccvQ3S00.s:647    .text:00000000000002ec _ZN3TCB25initializeClassAttributesEPS_PFvPvES1_S1_
+     /tmp/ccvQ3S00.s:650    .text:00000000000002ec .L0 
+     /tmp/ccvQ3S00.s:652    .text:00000000000002ec .L0 
+     /tmp/ccvQ3S00.s:653    .text:00000000000002f0 .L0 
+     /tmp/ccvQ3S00.s:655    .text:00000000000002f4 .L0 
+     /tmp/ccvQ3S00.s:657    .text:00000000000002f8 .L0 
+     /tmp/ccvQ3S00.s:659    .text:00000000000002f8 .L0 
+     /tmp/ccvQ3S00.s:660    .text:00000000000002f8 .L0 
+     /tmp/ccvQ3S00.s:662    .text:00000000000002fc .L0 
+     /tmp/ccvQ3S00.s:663    .text:00000000000002fc .L0 
+     /tmp/ccvQ3S00.s:665    .text:0000000000000300 .L0 
+     /tmp/ccvQ3S00.s:666    .text:0000000000000300 .L0 
+     /tmp/ccvQ3S00.s:668    .text:0000000000000304 .L0 
+     /tmp/ccvQ3S00.s:669    .text:0000000000000304 .L0 
+     /tmp/ccvQ3S00.s:672    .text:0000000000000310 .L0 
+     /tmp/ccvQ3S00.s:673    .text:0000000000000310 .L0 
+     /tmp/ccvQ3S00.s:675    .text:0000000000000314 .L0 
+     /tmp/ccvQ3S00.s:680    .text:000000000000031c .L0 
+     /tmp/ccvQ3S00.s:682    .text:0000000000000320 .L0 
+     /tmp/ccvQ3S00.s:683    .text:0000000000000320 .L0 
+     /tmp/ccvQ3S00.s:685    .text:0000000000000324 .L0 
+     /tmp/ccvQ3S00.s:686    .text:0000000000000324 .L0 
+     /tmp/ccvQ3S00.s:691    .text:0000000000000338 .L0 
+     /tmp/ccvQ3S00.s:693    .text:000000000000033c .L0 
+     /tmp/ccvQ3S00.s:694    .text:0000000000000340 .L0 
+     /tmp/ccvQ3S00.s:695    .text:0000000000000340 .L0 
+     /tmp/ccvQ3S00.s:696    .text:0000000000000340 .L0 
+     /tmp/ccvQ3S00.s:698    .text:0000000000000344 .L0 
+     /tmp/ccvQ3S00.s:702    .text:0000000000000348 .L0 
+     /tmp/ccvQ3S00.s:704    .text:0000000000000348 .L0 
+     /tmp/ccvQ3S00.s:707    .text:0000000000000350 .L0 
+     /tmp/ccvQ3S00.s:713    .text:0000000000000350 _ZN3TCBC2EPFvPvES0_S0_
+     /tmp/ccvQ3S00.s:716    .text:0000000000000350 .L0 
+     /tmp/ccvQ3S00.s:718    .text:0000000000000350 .L0 
+     /tmp/ccvQ3S00.s:719    .text:0000000000000354 .L0 
+     /tmp/ccvQ3S00.s:724    .text:0000000000000364 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 35
+
+
+     /tmp/ccvQ3S00.s:725    .text:0000000000000364 .L0 
+     /tmp/ccvQ3S00.s:726    .text:0000000000000364 .L0 
+     /tmp/ccvQ3S00.s:727    .text:0000000000000364 .L0 
+     /tmp/ccvQ3S00.s:729    .text:0000000000000368 .L0 
+     /tmp/ccvQ3S00.s:734    .text:0000000000000370 .L0 
+     /tmp/ccvQ3S00.s:746    .text:000000000000039c .L0 
+     /tmp/ccvQ3S00.s:747    .text:000000000000039c .L0 
+     /tmp/ccvQ3S00.s:750    .text:00000000000003a4 .L0 
+     /tmp/ccvQ3S00.s:752    .text:00000000000003a8 .L0 
+     /tmp/ccvQ3S00.s:753    .text:00000000000003a8 .L0 
+     /tmp/ccvQ3S00.s:756    .text:00000000000003b0 .L0 
+     /tmp/ccvQ3S00.s:762    .text:00000000000003bc .L0 
+     /tmp/ccvQ3S00.s:763    .text:00000000000003c0 .L0 
+     /tmp/ccvQ3S00.s:765    .text:00000000000003c4 .L0 
+     /tmp/ccvQ3S00.s:766    .text:00000000000003c4 .L0 
+     /tmp/ccvQ3S00.s:768    .text:00000000000003c8 .L0 
+     /tmp/ccvQ3S00.s:771    .text:00000000000003cc .L0 
+     /tmp/ccvQ3S00.s:774    .text:00000000000003d0 .L0 
+     /tmp/ccvQ3S00.s:776    .text:00000000000003d4 .L0 
+     /tmp/ccvQ3S00.s:713    .text:0000000000000350 _ZN3TCBC1EPFvPvES0_S0_
+     /tmp/ccvQ3S00.s:784    .text:00000000000003d4 _ZN3TCBC2EPFvPvES0_S0_b
+     /tmp/ccvQ3S00.s:787    .text:00000000000003d4 .L0 
+     /tmp/ccvQ3S00.s:789    .text:00000000000003d4 .L0 
+     /tmp/ccvQ3S00.s:790    .text:00000000000003d8 .L0 
+     /tmp/ccvQ3S00.s:793    .text:00000000000003e0 .L0 
+     /tmp/ccvQ3S00.s:794    .text:00000000000003e0 .L0 
+     /tmp/ccvQ3S00.s:796    .text:00000000000003e4 .L0 
+     /tmp/ccvQ3S00.s:799    .text:00000000000003e4 .L0 
+     /tmp/ccvQ3S00.s:812    .text:0000000000000410 .L0 
+     /tmp/ccvQ3S00.s:813    .text:0000000000000410 .L0 
+     /tmp/ccvQ3S00.s:817    .text:0000000000000418 .L0 
+     /tmp/ccvQ3S00.s:818    .text:000000000000041c .L0 
+     /tmp/ccvQ3S00.s:820    .text:0000000000000420 .L0 
+     /tmp/ccvQ3S00.s:821    .text:0000000000000420 .L0 
+     /tmp/ccvQ3S00.s:823    .text:0000000000000424 .L0 
+     /tmp/ccvQ3S00.s:825    .text:0000000000000428 .L0 
+     /tmp/ccvQ3S00.s:784    .text:00000000000003d4 _ZN3TCBC1EPFvPvES0_S0_b
+     /tmp/ccvQ3S00.s:833    .text:0000000000000428 _ZN3TCB12createThreadEPFvPvES0_S0_b
+     /tmp/ccvQ3S00.s:836    .text:0000000000000428 .L0 
+     /tmp/ccvQ3S00.s:5877   .data.rel.local.DW.ref.__gxx_personality_v0:0000000000000000 DW.ref.__gxx_personality_v0
+     /tmp/ccvQ3S00.s:840    .text:0000000000000428 .L0 
+     /tmp/ccvQ3S00.s:841    .text:000000000000042c .L0 
+     /tmp/ccvQ3S00.s:849    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:850    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:851    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:852    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:853    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:854    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:855    .text:0000000000000448 .L0 
+     /tmp/ccvQ3S00.s:857    .text:000000000000044c .L0 
+     /tmp/ccvQ3S00.s:862    .text:0000000000000458 .L0 
+     /tmp/ccvQ3S00.s:865    .text:0000000000000460 .L0 
+     /tmp/ccvQ3S00.s:866    .text:0000000000000460 .L0 
+     /tmp/ccvQ3S00.s:880    .text:0000000000000488 .L0 
+     /tmp/ccvQ3S00.s:882    .text:0000000000000490 .L0 
+     /tmp/ccvQ3S00.s:883    .text:0000000000000490 .L0 
+     /tmp/ccvQ3S00.s:885    .text:0000000000000494 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 36
+
+
+     /tmp/ccvQ3S00.s:886    .text:0000000000000494 .L0 
+     /tmp/ccvQ3S00.s:888    .text:0000000000000498 .L0 
+     /tmp/ccvQ3S00.s:890    .text:000000000000049c .L0 
+     /tmp/ccvQ3S00.s:892    .text:00000000000004a0 .L0 
+     /tmp/ccvQ3S00.s:895    .text:00000000000004a4 .L0 
+     /tmp/ccvQ3S00.s:898    .text:00000000000004a8 .L0 
+     /tmp/ccvQ3S00.s:901    .text:00000000000004ac .L0 
+     /tmp/ccvQ3S00.s:905    .text:00000000000004b0 .L0 
+     /tmp/ccvQ3S00.s:907    .text:00000000000004b0 .L0 
+     /tmp/ccvQ3S00.s:908    .text:00000000000004b0 .L0 
+     /tmp/ccvQ3S00.s:932    .text:00000000000004f4 .L0 
+     /tmp/ccvQ3S00.s:958    .text:00000000000004f4 _ZN3TCB13contextSwitchEPNS_7ContextES1_
+     /tmp/ccvQ3S00.s:961    .text:00000000000004f4 .L0 
+     /tmp/ccvQ3S00.s:963    .text:00000000000004f4 .L0 
+     /tmp/ccvQ3S00.s:964    .text:00000000000004f8 .L0 
+     /tmp/ccvQ3S00.s:966    .text:00000000000004fc .L0 
+     /tmp/ccvQ3S00.s:968    .text:0000000000000500 .L0 
+     /tmp/ccvQ3S00.s:970    .text:0000000000000500 .L0 
+src/Code/Thread/TCB.cpp:154    .text:0000000000000500 .L0 
+     /tmp/ccvQ3S00.s:976    .text:0000000000000504 .L0 
+src/Code/Thread/TCB.cpp:155    .text:0000000000000504 .L0 
+     /tmp/ccvQ3S00.s:981    .text:0000000000000508 .L0 
+src/Code/Thread/TCB.cpp:159    .text:0000000000000508 .L0 
+     /tmp/ccvQ3S00.s:986    .text:000000000000050c .L0 
+src/Code/Thread/TCB.cpp:160    .text:000000000000050c .L0 
+     /tmp/ccvQ3S00.s:992    .text:0000000000000510 .L0 
+     /tmp/ccvQ3S00.s:993    .text:0000000000000514 .L0 
+     /tmp/ccvQ3S00.s:994    .text:0000000000000514 .L0 
+     /tmp/ccvQ3S00.s:996    .text:0000000000000518 .L0 
+     /tmp/ccvQ3S00.s:998    .text:000000000000051c .L0 
+     /tmp/ccvQ3S00.s:1004   .text:000000000000051c _ZN3TCB8dispatchEv
+     /tmp/ccvQ3S00.s:1007   .text:000000000000051c .L0 
+     /tmp/ccvQ3S00.s:1008   .text:000000000000051c .L0 
+     /tmp/ccvQ3S00.s:1009   .text:0000000000000520 .L0 
+     /tmp/ccvQ3S00.s:1013   .text:000000000000052c .L0 
+     /tmp/ccvQ3S00.s:1014   .text:000000000000052c .L0 
+     /tmp/ccvQ3S00.s:1015   .text:000000000000052c .L0 
+     /tmp/ccvQ3S00.s:1017   .text:0000000000000530 .L0 
+     /tmp/ccvQ3S00.s:1019   .text:0000000000000530 .L0 
+     /tmp/ccvQ3S00.s:1020   .text:0000000000000530 .L0 
+     /tmp/ccvQ3S00.s:1025   .text:0000000000000538 .L0 
+     /tmp/ccvQ3S00.s:1026   .text:0000000000000538 .L0 
+     /tmp/ccvQ3S00.s:1027   .text:0000000000000538 .L0 
+     /tmp/ccvQ3S00.s:1032   .text:000000000000053c .L0 
+     /tmp/ccvQ3S00.s:1035   .text:0000000000000540 .L0 
+     /tmp/ccvQ3S00.s:1036   .text:0000000000000540 .L0 
+     /tmp/ccvQ3S00.s:1039   .text:0000000000000548 .L0 
+     /tmp/ccvQ3S00.s:1042   .text:0000000000000550 .L0 
+     /tmp/ccvQ3S00.s:1044   .text:0000000000000558 .L0 
+     /tmp/ccvQ3S00.s:1045   .text:0000000000000558 .L0 
+     /tmp/ccvQ3S00.s:1050   .text:0000000000000568 .L0 
+     /tmp/ccvQ3S00.s:1051   .text:000000000000056c .L0 
+     /tmp/ccvQ3S00.s:1052   .text:000000000000056c .L0 
+     /tmp/ccvQ3S00.s:1054   .text:0000000000000570 .L0 
+     /tmp/ccvQ3S00.s:1055   .text:0000000000000570 .L0 
+     /tmp/ccvQ3S00.s:1057   .text:0000000000000574 .L0 
+     /tmp/ccvQ3S00.s:1060   .text:0000000000000578 .L0 
+GAS LISTING /tmp/ccvQ3S00.s 			page 37
+
+
+     /tmp/ccvQ3S00.s:1064   .text:000000000000057c .L0 
+     /tmp/ccvQ3S00.s:1066   .text:000000000000057c .L0 
+     /tmp/ccvQ3S00.s:1067   .text:000000000000057c .L0 
+     /tmp/ccvQ3S00.s:1070   .text:0000000000000584 .L0 
+     /tmp/ccvQ3S00.s:1074   .text:0000000000000594 .L0 
+     /tmp/ccvQ3S00.s:1080   .text:0000000000000594 _ZN3TCB20suspendCurrentThreadEv
+     /tmp/ccvQ3S00.s:1083   .text:0000000000000594 .L0 
+     /tmp/ccvQ3S00.s:1084   .text:0000000000000594 .L0 
+     /tmp/ccvQ3S00.s:1085   .text:0000000000000598 .L0 
+     /tmp/ccvQ3S00.s:1090   .text:00000000000005a8 .L0 
+     /tmp/ccvQ3S00.s:1091   .text:00000000000005a8 .L0 
+     /tmp/ccvQ3S00.s:1092   .text:00000000000005a8 .L0 
+     /tmp/ccvQ3S00.s:1093   .text:00000000000005a8 .L0 
+     /tmp/ccvQ3S00.s:1095   .text:00000000000005ac .L0 
+     /tmp/ccvQ3S00.s:1097   .text:00000000000005ac .L0 
+     /tmp/ccvQ3S00.s:1098   .text:00000000000005ac .L0 
+     /tmp/ccvQ3S00.s:1102   .text:00000000000005b8 .L0 
+     /tmp/ccvQ3S00.s:1103   .text:00000000000005b8 .L0 
+     /tmp/ccvQ3S00.s:1106   .text:00000000000005c0 .L0 
+     /tmp/ccvQ3S00.s:1109   .text:00000000000005c8 .L0 
+     /tmp/ccvQ3S00.s:1111   .text:00000000000005cc .L0 
+     /tmp/ccvQ3S00.s:1112   .text:00000000000005cc .L0 
+     /tmp/ccvQ3S00.s:1117   .text:00000000000005dc .L0 
+     /tmp/ccvQ3S00.s:1118   .text:00000000000005e0 .L0 
+     /tmp/ccvQ3S00.s:1120   .text:00000000000005e4 .L0 
+     /tmp/ccvQ3S00.s:1121   .text:00000000000005e4 .L0 
+     /tmp/ccvQ3S00.s:1123   .text:00000000000005e8 .L0 
+     /tmp/ccvQ3S00.s:1125   .text:00000000000005ec .L0 
+     /tmp/ccvQ3S00.s:1128   .text:00000000000005f0 .L0 
+     /tmp/ccvQ3S00.s:1130   .text:00000000000005f4 .L0 
+     /tmp/ccvQ3S00.s:1151   .bss:0000000000000010 _ZN3TCB9sleepTailE
+     /tmp/ccvQ3S00.s:1147   .bss:0000000000000008 _ZN3TCB9sleepHeadE
+     /tmp/ccvQ3S00.s:1160   .bss:0000000000000020 _ZN3TCB16timeSliceCounterE
+     /tmp/ccvQ3S00.s:1143   .bss:0000000000000000 _ZN3TCB13runningThreadE
+     /tmp/ccvQ3S00.s:1155   .bss:0000000000000018 _ZN3TCB14staticThreadIdE
+     /tmp/ccvQ3S00.s:1140   .bss:0000000000000000 .LANCHOR0
+     /tmp/ccvQ3S00.s:1169   .text:00000000000005f4 .L0 
+     /tmp/ccvQ3S00.s:34     .text:0000000000000024 .L0 
+     /tmp/ccvQ3S00.s:96     .text:0000000000000074 .L0 
+     /tmp/ccvQ3S00.s:100    .text:0000000000000080 .L0 
+     /tmp/ccvQ3S00.s:142    .text:00000000000000a8 .L0 
+     /tmp/ccvQ3S00.s:164    .text:00000000000000c4 .L0 
+     /tmp/ccvQ3S00.s:270    .text:0000000000000104 .L0 
+     /tmp/ccvQ3S00.s:277    .text:0000000000000110 .L0 
+     /tmp/ccvQ3S00.s:344    .text:0000000000000154 .L0 
+     /tmp/ccvQ3S00.s:348    .text:0000000000000160 .L0 
+     /tmp/ccvQ3S00.s:447    .text:00000000000001c4 .L0 
+     /tmp/ccvQ3S00.s:466    .text:00000000000001d8 .L0 
+     /tmp/ccvQ3S00.s:669    .text:0000000000000304 .L0 
+     /tmp/ccvQ3S00.s:686    .text:0000000000000324 .L0 
+     /tmp/ccvQ3S00.s:1020   .text:0000000000000530 .L0 
+     /tmp/ccvQ3S00.s:1042   .text:0000000000000550 .L0 
+     /tmp/ccvQ3S00.s:1098   .text:00000000000005ac .L0 
+     /tmp/ccvQ3S00.s:69     .text:000000000000005c .L4
+     /tmp/ccvQ3S00.s:56     .text:0000000000000048 .L1
+     /tmp/ccvQ3S00.s:138    .text:00000000000000a8 .L6
+     /tmp/ccvQ3S00.s:273    .text:0000000000000110 .L9
+GAS LISTING /tmp/ccvQ3S00.s 			page 38
+
+
+     /tmp/ccvQ3S00.s:160    .text:00000000000000c4 .L15
+     /tmp/ccvQ3S00.s:105    .text:0000000000000090 .L7
+     /tmp/ccvQ3S00.s:312    .text:0000000000000130 .L5
+     /tmp/ccvQ3S00.s:246    .text:00000000000000f8 .L16
+     /tmp/ccvQ3S00.s:231    .text:00000000000000f0 .L12
+     /tmp/ccvQ3S00.s:378    .text:0000000000000180 .L17
+     /tmp/ccvQ3S00.s:417    .text:00000000000001b4 .L23
+     /tmp/ccvQ3S00.s:460    .text:00000000000001d8 .L25
+     /tmp/ccvQ3S00.s:374    .text:000000000000017c .L19
+     /tmp/ccvQ3S00.s:394    .text:0000000000000198 .L21
+     /tmp/ccvQ3S00.s:701    .text:0000000000000348 .L36
+     /tmp/ccvQ3S00.s:678    .text:000000000000031c .L35
+     /tmp/ccvQ3S00.s:759    .text:00000000000003bc .L38
+     /tmp/ccvQ3S00.s:904    .text:00000000000004b0 .L44
+     /tmp/ccvQ3S00.s:878    .text:0000000000000488 .L43
+     /tmp/ccvQ3S00.s:1063   .text:000000000000057c .L54
+     /tmp/ccvQ3S00.s:1033   .text:0000000000000540 .L52
+     /tmp/ccvQ3S00.s:868    .text:0000000000000464 .LEHB0
+     /tmp/ccvQ3S00.s:834    .text:0000000000000428 .LFB44
+     /tmp/ccvQ3S00.s:912    .text:00000000000004bc .LEHE0
+     /tmp/ccvQ3S00.s:917    .text:00000000000004cc .LEHB1
+     /tmp/ccvQ3S00.s:920    .text:00000000000004d4 .LEHE1
+     /tmp/ccvQ3S00.s:922    .text:00000000000004d8 .L47
+     /tmp/ccvQ3S00.s:928    .text:00000000000004ec .LEHB2
+     /tmp/ccvQ3S00.s:931    .text:00000000000004f4 .LEHE2
+     /tmp/ccvQ3S00.s:3635   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/ccvQ3S00.s:5799   .debug_str:0000000000000d27 .LASF204
+     /tmp/ccvQ3S00.s:5483   .debug_str:0000000000000159 .LASF205
+     /tmp/ccvQ3S00.s:5807   .debug_str:0000000000000e22 .LASF206
+     /tmp/ccvQ3S00.s:5      .text:0000000000000000 .Ltext0
+     /tmp/ccvQ3S00.s:1163   .text:00000000000005f4 .Letext0
+     /tmp/ccvQ3S00.s:5443   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/ccvQ3S00.s:5597   .debug_str:0000000000000596 .LASF0
+     /tmp/ccvQ3S00.s:5631   .debug_str:00000000000006e9 .LASF1
+     /tmp/ccvQ3S00.s:5741   .debug_str:0000000000000b5f .LASF2
+     /tmp/ccvQ3S00.s:5755   .debug_str:0000000000000bc8 .LASF4
+     /tmp/ccvQ3S00.s:5609   .debug_str:00000000000005ee .LASF3
+     /tmp/ccvQ3S00.s:5461   .debug_str:00000000000000a4 .LASF5
+     /tmp/ccvQ3S00.s:5697   .debug_str:00000000000009bf .LASF6
+     /tmp/ccvQ3S00.s:5619   .debug_str:000000000000067e .LASF7
+     /tmp/ccvQ3S00.s:5573   .debug_str:0000000000000474 .LASF8
+     /tmp/ccvQ3S00.s:5581   .debug_str:00000000000004bf .LASF9
+     /tmp/ccvQ3S00.s:5503   .debug_str:0000000000000211 .LASF10
+     /tmp/ccvQ3S00.s:5561   .debug_str:0000000000000433 .LASF11
+     /tmp/ccvQ3S00.s:5519   .debug_str:00000000000002b2 .LASF12
+     /tmp/ccvQ3S00.s:5501   .debug_str:0000000000000201 .LASF13
+     /tmp/ccvQ3S00.s:5787   .debug_str:0000000000000cc9 .LASF14
+     /tmp/ccvQ3S00.s:5543   .debug_str:0000000000000391 .LASF15
+     /tmp/ccvQ3S00.s:5777   .debug_str:0000000000000c71 .LASF16
+     /tmp/ccvQ3S00.s:5571   .debug_str:000000000000046a .LASF17
+     /tmp/ccvQ3S00.s:5847   .debug_str:0000000000000fcf .LASF118
+     /tmp/ccvQ3S00.s:5617   .debug_str:0000000000000661 .LASF120
+     /tmp/ccvQ3S00.s:5497   .debug_str:00000000000001d5 .LASF19
+     /tmp/ccvQ3S00.s:5745   .debug_str:0000000000000b7a .LASF18
+     /tmp/ccvQ3S00.s:5753   .debug_str:0000000000000bb3 .LASF20
+     /tmp/ccvQ3S00.s:5859   .debug_str:000000000000103c .LASF207
+     /tmp/ccvQ3S00.s:5589   .debug_str:0000000000000522 .LASF208
+GAS LISTING /tmp/ccvQ3S00.s 			page 39
+
+
+     /tmp/ccvQ3S00.s:5853   .debug_str:0000000000000ffb .LASF24
+     /tmp/ccvQ3S00.s:5767   .debug_str:0000000000000c1b .LASF21
+     /tmp/ccvQ3S00.s:5639   .debug_str:000000000000072b .LASF22
+     /tmp/ccvQ3S00.s:5791   .debug_str:0000000000000cde .LASF168
+     /tmp/ccvQ3S00.s:5785   .debug_str:0000000000000cbc .LASF23
+     /tmp/ccvQ3S00.s:5731   .debug_str:0000000000000b03 .LASF25
+     /tmp/ccvQ3S00.s:5687   .debug_str:0000000000000950 .LASF209
+     /tmp/ccvQ3S00.s:5671   .debug_str:00000000000008b8 .LASF26
+     /tmp/ccvQ3S00.s:5663   .debug_str:0000000000000841 .LASF27
+     /tmp/ccvQ3S00.s:5487   .debug_str:000000000000017d .LASF28
+     /tmp/ccvQ3S00.s:5815   .debug_str:0000000000000e7b .LASF29
+     /tmp/ccvQ3S00.s:5635   .debug_str:0000000000000705 .LASF30
+     /tmp/ccvQ3S00.s:5823   .debug_str:0000000000000ecf .LASF31
+     /tmp/ccvQ3S00.s:5721   .debug_str:0000000000000aad .LASF32
+     /tmp/ccvQ3S00.s:5601   .debug_str:00000000000005b3 .LASF33
+     /tmp/ccvQ3S00.s:5555   .debug_str:00000000000003ff .LASF34
+     /tmp/ccvQ3S00.s:5613   .debug_str:000000000000061c .LASF35
+     /tmp/ccvQ3S00.s:5499   .debug_str:00000000000001ea .LASF36
+     /tmp/ccvQ3S00.s:5587   .debug_str:00000000000004fe .LASF37
+     /tmp/ccvQ3S00.s:5841   .debug_str:0000000000000f86 .LASF38
+     /tmp/ccvQ3S00.s:5451   .debug_str:0000000000000035 .LASF39
+     /tmp/ccvQ3S00.s:5673   .debug_str:00000000000008c4 .LASF40
+     /tmp/ccvQ3S00.s:5651   .debug_str:00000000000007a1 .LASF41
+     /tmp/ccvQ3S00.s:5781   .debug_str:0000000000000c98 .LASF42
+     /tmp/ccvQ3S00.s:5515   .debug_str:000000000000027e .LASF44
+     /tmp/ccvQ3S00.s:5477   .debug_str:0000000000000125 .LASF72
+     /tmp/ccvQ3S00.s:5447   .debug_str:0000000000000013 .LASF74
+     /tmp/ccvQ3S00.s:5825   .debug_str:0000000000000ee8 .LASF43
+     /tmp/ccvQ3S00.s:5473   .debug_str:00000000000000ff .LASF45
+     /tmp/ccvQ3S00.s:5711   .debug_str:0000000000000a30 .LASF46
+     /tmp/ccvQ3S00.s:5839   .debug_str:0000000000000f67 .LASF47
+     /tmp/ccvQ3S00.s:5683   .debug_str:0000000000000934 .LASF48
+     /tmp/ccvQ3S00.s:5869   .debug_str:0000000000001096 .LASF49
+     /tmp/ccvQ3S00.s:5577   .debug_str:0000000000000490 .LASF50
+     /tmp/ccvQ3S00.s:5667   .debug_str:0000000000000884 .LASF51
+     /tmp/ccvQ3S00.s:5445   .debug_str:0000000000000000 .LASF52
+     /tmp/ccvQ3S00.s:5627   .debug_str:00000000000006c4 .LASF53
+     /tmp/ccvQ3S00.s:5539   .debug_str:000000000000036b .LASF54
+     /tmp/ccvQ3S00.s:5705   .debug_str:00000000000009f6 .LASF55
+     /tmp/ccvQ3S00.s:5827   .debug_str:0000000000000efe .LASF56
+     /tmp/ccvQ3S00.s:5593   .debug_str:000000000000055d .LASF57
+     /tmp/ccvQ3S00.s:5467   .debug_str:00000000000000c2 .LASF58
+     /tmp/ccvQ3S00.s:5727   .debug_str:0000000000000acf .LASF59
+     /tmp/ccvQ3S00.s:5489   .debug_str:0000000000000189 .LASF60
+     /tmp/ccvQ3S00.s:5521   .debug_str:00000000000002c2 .LASF61
+     /tmp/ccvQ3S00.s:5771   .debug_str:0000000000000c38 .LASF62
+     /tmp/ccvQ3S00.s:5795   .debug_str:0000000000000cf9 .LASF63
+     /tmp/ccvQ3S00.s:5495   .debug_str:00000000000001be .LASF64
+     /tmp/ccvQ3S00.s:5845   .debug_str:0000000000000fac .LASF65
+     /tmp/ccvQ3S00.s:5563   .debug_str:0000000000000442 .LASF66
+     /tmp/ccvQ3S00.s:5623   .debug_str:00000000000006a1 .LASF67
+     /tmp/ccvQ3S00.s:5863   .debug_str:0000000000001056 .LASF68
+     /tmp/ccvQ3S00.s:5575   .debug_str:0000000000000484 .LASF69
+     /tmp/ccvQ3S00.s:5493   .debug_str:00000000000001ae .LASF70
+     /tmp/ccvQ3S00.s:5569   .debug_str:000000000000045e .LASF71
+     /tmp/ccvQ3S00.s:5599   .debug_str:00000000000005a3 .LASF73
+     /tmp/ccvQ3S00.s:5649   .debug_str:0000000000000794 .LASF75
+GAS LISTING /tmp/ccvQ3S00.s 			page 40
+
+
+     /tmp/ccvQ3S00.s:5775   .debug_str:0000000000000c5e .LASF76
+     /tmp/ccvQ3S00.s:5743   .debug_str:0000000000000b6d .LASF77
+     /tmp/ccvQ3S00.s:5757   .debug_str:0000000000000bcf .LASF78
+     /tmp/ccvQ3S00.s:5455   .debug_str:0000000000000080 .LASF79
+     /tmp/ccvQ3S00.s:5457   .debug_str:000000000000008c .LASF210
+     /tmp/ccvQ3S00.s:5801   .debug_str:0000000000000deb .LASF86
+     /tmp/ccvQ3S00.s:5641   .debug_str:0000000000000739 .LASF88
+     /tmp/ccvQ3S00.s:5505   .debug_str:0000000000000220 .LASF80
+     /tmp/ccvQ3S00.s:5675   .debug_str:00000000000008db .LASF81
+     /tmp/ccvQ3S00.s:5537   .debug_str:0000000000000362 .LASF82
+     /tmp/ccvQ3S00.s:5511   .debug_str:0000000000000261 .LASF84
+     /tmp/ccvQ3S00.s:5491   .debug_str:00000000000001a0 .LASF83
+     /tmp/ccvQ3S00.s:5637   .debug_str:0000000000000712 .LASF85
+     /tmp/ccvQ3S00.s:5529   .debug_str:0000000000000319 .LASF87
+     /tmp/ccvQ3S00.s:5453   .debug_str:0000000000000058 .LASF89
+     /tmp/ccvQ3S00.s:5763   .debug_str:0000000000000bf2 .LASF98
+     /tmp/ccvQ3S00.s:5449   .debug_str:0000000000000030 .LASF90
+     /tmp/ccvQ3S00.s:5803   .debug_str:0000000000000e05 .LASF91
+     /tmp/ccvQ3S00.s:5861   .debug_str:0000000000001050 .LASF92
+     /tmp/ccvQ3S00.s:5813   .debug_str:0000000000000e73 .LASF93
+     /tmp/ccvQ3S00.s:5789   .debug_str:0000000000000cd5 .LASF94
+     /tmp/ccvQ3S00.s:5809   .debug_str:0000000000000e45 .LASF95
+     /tmp/ccvQ3S00.s:5739   .debug_str:0000000000000b4b .LASF96
+     /tmp/ccvQ3S00.s:5553   .debug_str:00000000000003f5 .LASF97
+     /tmp/ccvQ3S00.s:5459   .debug_str:000000000000009a .LASF99
+     /tmp/ccvQ3S00.s:5829   .debug_str:0000000000000f0b .LASF100
+     /tmp/ccvQ3S00.s:5621   .debug_str:0000000000000691 .LASF101
+     /tmp/ccvQ3S00.s:5725   .debug_str:0000000000000abf .LASF102
+     /tmp/ccvQ3S00.s:5643   .debug_str:000000000000076c .LASF103
+     /tmp/ccvQ3S00.s:5523   .debug_str:00000000000002e6 .LASF104
+     /tmp/ccvQ3S00.s:5749   .debug_str:0000000000000b8f .LASF105
+     /tmp/ccvQ3S00.s:5821   .debug_str:0000000000000ec6 .LASF106
+     /tmp/ccvQ3S00.s:5835   .debug_str:0000000000000f4f .LASF107
+     /tmp/ccvQ3S00.s:5843   .debug_str:0000000000000f9d .LASF108
+     /tmp/ccvQ3S00.s:5579   .debug_str:00000000000004a3 .LASF109
+     /tmp/ccvQ3S00.s:5715   .debug_str:0000000000000a61 .LASF110
+     /tmp/ccvQ3S00.s:5591   .debug_str:000000000000053a .LASF111
+     /tmp/ccvQ3S00.s:5465   .debug_str:00000000000000b0 .LASF112
+     /tmp/ccvQ3S00.s:5817   .debug_str:0000000000000e92 .LASF113
+     /tmp/ccvQ3S00.s:5729   .debug_str:0000000000000af2 .LASF114
+     /tmp/ccvQ3S00.s:5833   .debug_str:0000000000000f31 .LASF115
+     /tmp/ccvQ3S00.s:5549   .debug_str:00000000000003d5 .LASF116
+     /tmp/ccvQ3S00.s:5857   .debug_str:000000000000101c .LASF117
+     /tmp/ccvQ3S00.s:5797   .debug_str:0000000000000d1b .LASF119
+     /tmp/ccvQ3S00.s:5583   .debug_str:00000000000004cd .LASF121
+     /tmp/ccvQ3S00.s:5551   .debug_str:00000000000003e8 .LASF122
+     /tmp/ccvQ3S00.s:5707   .debug_str:0000000000000a0e .LASF123
+     /tmp/ccvQ3S00.s:5849   .debug_str:0000000000000fdb .LASF124
+     /tmp/ccvQ3S00.s:5595   .debug_str:0000000000000576 .LASF125
+     /tmp/ccvQ3S00.s:5819   .debug_str:0000000000000eb1 .LASF126
+     /tmp/ccvQ3S00.s:5695   .debug_str:000000000000099d .LASF127
+     /tmp/ccvQ3S00.s:5709   .debug_str:0000000000000a28 .LASF128
+     /tmp/ccvQ3S00.s:5525   .debug_str:00000000000002fa .LASF129
+     /tmp/ccvQ3S00.s:5685   .debug_str:0000000000000947 .LASF130
+     /tmp/ccvQ3S00.s:5759   .debug_str:0000000000000bd4 .LASF131
+     /tmp/ccvQ3S00.s:5783   .debug_str:0000000000000cad .LASF132
+     /tmp/ccvQ3S00.s:5693   .debug_str:0000000000000981 .LASF133
+GAS LISTING /tmp/ccvQ3S00.s 			page 41
+
+
+     /tmp/ccvQ3S00.s:5533   .debug_str:000000000000033d .LASF134
+     /tmp/ccvQ3S00.s:5713   .debug_str:0000000000000a43 .LASF135
+     /tmp/ccvQ3S00.s:5699   .debug_str:00000000000009d2 .LASF136
+     /tmp/ccvQ3S00.s:5517   .debug_str:000000000000029e .LASF137
+     /tmp/ccvQ3S00.s:5761   .debug_str:0000000000000be9 .LASF138
+     /tmp/ccvQ3S00.s:5751   .debug_str:0000000000000b9e .LASF139
+     /tmp/ccvQ3S00.s:5773   .debug_str:0000000000000c4f .LASF140
+     /tmp/ccvQ3S00.s:5689   .debug_str:0000000000000955 .LASF141
+     /tmp/ccvQ3S00.s:5509   .debug_str:0000000000000250 .LASF142
+     /tmp/ccvQ3S00.s:5719   .debug_str:0000000000000a8f .LASF143
+     /tmp/ccvQ3S00.s:5661   .debug_str:0000000000000835 .LASF144
+     /tmp/ccvQ3S00.s:5541   .debug_str:0000000000000378 .LASF145
+     /tmp/ccvQ3S00.s:5851   .debug_str:0000000000000fee .LASF146
+     /tmp/ccvQ3S00.s:5811   .debug_str:0000000000000e59 .LASF147
+     /tmp/ccvQ3S00.s:5633   .debug_str:00000000000006fc .LASF148
+     /tmp/ccvQ3S00.s:5669   .debug_str:00000000000008a3 .LASF149
+     /tmp/ccvQ3S00.s:5723   .debug_str:0000000000000ab5 .LASF150
+     /tmp/ccvQ3S00.s:5545   .debug_str:00000000000003a7 .LASF151
+     /tmp/ccvQ3S00.s:5567   .debug_str:0000000000000453 .LASF152
+     /tmp/ccvQ3S00.s:5717   .debug_str:0000000000000a77 .LASF153
+     /tmp/ccvQ3S00.s:5677   .debug_str:00000000000008f3 .LASF154
+     /tmp/ccvQ3S00.s:5507   .debug_str:0000000000000237 .LASF155
+     /tmp/ccvQ3S00.s:5513   .debug_str:0000000000000274 .LASF156
+     /tmp/ccvQ3S00.s:5559   .debug_str:000000000000041d .LASF157
+     /tmp/ccvQ3S00.s:5527   .debug_str:000000000000030e .LASF158
+     /tmp/ccvQ3S00.s:5765   .debug_str:0000000000000c03 .LASF159
+     /tmp/ccvQ3S00.s:5737   .debug_str:0000000000000b41 .LASF160
+     /tmp/ccvQ3S00.s:5531   .debug_str:0000000000000327 .LASF161
+     /tmp/ccvQ3S00.s:5747   .debug_str:0000000000000b84 .LASF162
+     /tmp/ccvQ3S00.s:5585   .debug_str:00000000000004e6 .LASF163
+     /tmp/ccvQ3S00.s:5735   .debug_str:0000000000000b2c .LASF164
+     /tmp/ccvQ3S00.s:5615   .debug_str:000000000000063f .LASF165
+     /tmp/ccvQ3S00.s:5733   .debug_str:0000000000000b27 .LASF166
+     /tmp/ccvQ3S00.s:5691   .debug_str:0000000000000971 .LASF167
+     /tmp/ccvQ3S00.s:5485   .debug_str:0000000000000171 .LASF169
+     /tmp/ccvQ3S00.s:5629   .debug_str:00000000000006e4 .LASF170
+     /tmp/ccvQ3S00.s:5463   .debug_str:00000000000000ab .LASF171
+     /tmp/ccvQ3S00.s:5475   .debug_str:0000000000000120 .LASF172
+     /tmp/ccvQ3S00.s:5655   .debug_str:00000000000007d9 .LASF173
+     /tmp/ccvQ3S00.s:5611   .debug_str:0000000000000600 .LASF174
+     /tmp/ccvQ3S00.s:5679   .debug_str:00000000000008ff .LASF175
+     /tmp/ccvQ3S00.s:5657   .debug_str:00000000000007fd .LASF176
+     /tmp/ccvQ3S00.s:5659   .debug_str:000000000000080d .LASF177
+     /tmp/ccvQ3S00.s:5837   .debug_str:0000000000000f55 .LASF178
+     /tmp/ccvQ3S00.s:5665   .debug_str:0000000000000859 .LASF179
+     /tmp/ccvQ3S00.s:5471   .debug_str:00000000000000e6 .LASF180
+     /tmp/ccvQ3S00.s:5469   .debug_str:00000000000000d9 .LASF181
+     /tmp/ccvQ3S00.s:5653   .debug_str:00000000000007c5 .LASF182
+     /tmp/ccvQ3S00.s:5681   .debug_str:000000000000091b .LASF183
+     /tmp/ccvQ3S00.s:5867   .debug_str:000000000000107e .LASF184
+     /tmp/ccvQ3S00.s:5865   .debug_str:0000000000001063 .LASF185
+     /tmp/ccvQ3S00.s:5805   .debug_str:0000000000000e0f .LASF186
+     /tmp/ccvQ3S00.s:5793   .debug_str:0000000000000ce6 .LASF187
+     /tmp/ccvQ3S00.s:959    .text:00000000000004f4 .LFB61
+     /tmp/ccvQ3S00.s:999    .text:000000000000051c .LFE61
+     /tmp/ccvQ3S00.s:5625   .debug_str:00000000000006b9 .LASF188
+     /tmp/ccvQ3S00.s:5769   .debug_str:0000000000000c29 .LASF189
+GAS LISTING /tmp/ccvQ3S00.s 			page 42
+
+
+     /tmp/ccvQ3S00.s:10     .text:0000000000000000 .LFB60
+     /tmp/ccvQ3S00.s:78     .text:0000000000000068 .LFE60
+     /tmp/ccvQ3S00.s:45     .text:0000000000000040 .LBB54
+     /tmp/ccvQ3S00.s:53     .text:0000000000000044 .LBE54
+     /tmp/ccvQ3S00.s:4739   .debug_loc:0000000000000000 .LLST0
+     /tmp/ccvQ3S00.s:27     .text:000000000000001c .LVL0
+     /tmp/ccvQ3S00.s:31     .text:0000000000000024 .LVL1
+     /tmp/ccvQ3S00.s:74     .text:0000000000000064 .LVL5
+     /tmp/ccvQ3S00.s:1081   .text:0000000000000594 .LFB59
+     /tmp/ccvQ3S00.s:1131   .text:00000000000005f4 .LFE59
+     /tmp/ccvQ3S00.s:5481   .debug_str:000000000000014f .LASF190
+     /tmp/ccvQ3S00.s:4746   .debug_loc:0000000000000023 .LLST60
+     /tmp/ccvQ3S00.s:1104   .text:00000000000005c0 .LVL107
+     /tmp/ccvQ3S00.s:1107   .text:00000000000005c8 .LVL108
+     /tmp/ccvQ3S00.s:1115   .text:00000000000005dc .LVL109
+     /tmp/ccvQ3S00.s:1005   .text:000000000000051c .LFB58
+     /tmp/ccvQ3S00.s:1075   .text:0000000000000594 .LFE58
+     /tmp/ccvQ3S00.s:4753   .debug_loc:0000000000000046 .LLST58
+     /tmp/ccvQ3S00.s:1023   .text:0000000000000538 .LBB106
+     /tmp/ccvQ3S00.s:1030   .text:000000000000053c .LBE106
+     /tmp/ccvQ3S00.s:4764   .debug_loc:000000000000007c .LLST59
+     /tmp/ccvQ3S00.s:1037   .text:0000000000000548 .LVL99
+     /tmp/ccvQ3S00.s:1040   .text:0000000000000550 .LVL100
+     /tmp/ccvQ3S00.s:1048   .text:0000000000000568 .LVL101
+     /tmp/ccvQ3S00.s:1068   .text:0000000000000584 .LVL104
+     /tmp/ccvQ3S00.s:1072   .text:0000000000000590 .LVL105
+     /tmp/ccvQ3S00.s:5565   .debug_str:000000000000044e .LASF192
+     /tmp/ccvQ3S00.s:5557   .debug_str:0000000000000416 .LASF191
+     /tmp/ccvQ3S00.s:5547   .debug_str:00000000000003bd .LASF193
+     /tmp/ccvQ3S00.s:785    .text:00000000000003d4 .LFB56
+     /tmp/ccvQ3S00.s:826    .text:0000000000000428 .LFE56
+     /tmp/ccvQ3S00.s:4771   .debug_loc:000000000000009f .LLST49
+     /tmp/ccvQ3S00.s:4785   .debug_loc:00000000000000d8 .LLST50
+     /tmp/ccvQ3S00.s:4799   .debug_loc:0000000000000111 .LLST51
+     /tmp/ccvQ3S00.s:4813   .debug_loc:000000000000014a .LLST52
+     /tmp/ccvQ3S00.s:4827   .debug_loc:0000000000000183 .LLST53
+     /tmp/ccvQ3S00.s:814    .text:0000000000000418 .LVL82
+     /tmp/ccvQ3S00.s:5603   .debug_str:00000000000005c6 .LASF194
+     /tmp/ccvQ3S00.s:714    .text:0000000000000350 .LFB53
+     /tmp/ccvQ3S00.s:777    .text:00000000000003d4 .LFE53
+     /tmp/ccvQ3S00.s:4841   .debug_loc:00000000000001bc .LLST45
+     /tmp/ccvQ3S00.s:4859   .debug_loc:0000000000000208 .LLST46
+     /tmp/ccvQ3S00.s:4877   .debug_loc:0000000000000254 .LLST47
+     /tmp/ccvQ3S00.s:4891   .debug_loc:000000000000028d .LLST48
+     /tmp/ccvQ3S00.s:748    .text:00000000000003a4 .LVL75
+     /tmp/ccvQ3S00.s:754    .text:00000000000003b0 .LVL76
+     /tmp/ccvQ3S00.s:758    .text:00000000000003bc .LVL77
+     /tmp/ccvQ3S00.s:648    .text:00000000000002ec .LFB51
+     /tmp/ccvQ3S00.s:708    .text:0000000000000350 .LFE51
+     /tmp/ccvQ3S00.s:5647   .debug_str:0000000000000788 .LASF195
+     /tmp/ccvQ3S00.s:4905   .debug_loc:00000000000002c6 .LLST44
+     /tmp/ccvQ3S00.s:606    .text:00000000000002ac .LFB50
+     /tmp/ccvQ3S00.s:642    .text:00000000000002ec .LFE50
+     /tmp/ccvQ3S00.s:4926   .debug_loc:0000000000000324 .LLST43
+     /tmp/ccvQ3S00.s:624    .text:00000000000002cc .LVL67
+     /tmp/ccvQ3S00.s:628    .text:00000000000002d8 .LVL68
+     /tmp/ccvQ3S00.s:564    .text:000000000000026c .LFB49
+GAS LISTING /tmp/ccvQ3S00.s 			page 43
+
+
+     /tmp/ccvQ3S00.s:600    .text:00000000000002ac .LFE49
+     /tmp/ccvQ3S00.s:4944   .debug_loc:0000000000000370 .LLST42
+     /tmp/ccvQ3S00.s:582    .text:000000000000028c .LVL63
+     /tmp/ccvQ3S00.s:586    .text:0000000000000298 .LVL64
+     /tmp/ccvQ3S00.s:521    .text:000000000000022c .LFB48
+     /tmp/ccvQ3S00.s:558    .text:000000000000026c .LFE48
+     /tmp/ccvQ3S00.s:4962   .debug_loc:00000000000003bc .LLST41
+     /tmp/ccvQ3S00.s:539    .text:000000000000024c .LVL59
+     /tmp/ccvQ3S00.s:543    .text:0000000000000258 .LVL60
+     /tmp/ccvQ3S00.s:478    .text:00000000000001ec .LFB47
+     /tmp/ccvQ3S00.s:515    .text:000000000000022c .LFE47
+     /tmp/ccvQ3S00.s:4980   .debug_loc:0000000000000408 .LLST40
+     /tmp/ccvQ3S00.s:496    .text:000000000000020c .LVL55
+     /tmp/ccvQ3S00.s:500    .text:0000000000000218 .LVL56
+     /tmp/ccvQ3S00.s:327    .text:000000000000013c .LFB46
+     /tmp/ccvQ3S00.s:472    .text:00000000000001ec .LFE46
+     /tmp/ccvQ3S00.s:5605   .debug_str:00000000000005dd .LASF196
+     /tmp/ccvQ3S00.s:4998   .debug_loc:0000000000000454 .LLST29
+     /tmp/ccvQ3S00.s:5425   .debug_ranges:0000000000000000 .Ldebug_ranges0
+     /tmp/ccvQ3S00.s:5645   .debug_str:0000000000000780 .LASF197
+     /tmp/ccvQ3S00.s:5021   .debug_loc:00000000000004c3 .LLST33
+     /tmp/ccvQ3S00.s:398    .text:0000000000000198 .LBB95
+     /tmp/ccvQ3S00.s:405    .text:000000000000019c .LBE95
+     /tmp/ccvQ3S00.s:5032   .debug_loc:00000000000004f9 .LLST34
+     /tmp/ccvQ3S00.s:5040   .debug_loc:000000000000051d .LLST35
+     /tmp/ccvQ3S00.s:437    .text:00000000000001c0 .LBB97
+     /tmp/ccvQ3S00.s:444    .text:00000000000001c4 .LBE97
+     /tmp/ccvQ3S00.s:5047   .debug_loc:0000000000000540 .LLST36
+     /tmp/ccvQ3S00.s:452    .text:00000000000001d0 .LBB99
+     /tmp/ccvQ3S00.s:462    .text:00000000000001d8 .LBE99
+     /tmp/ccvQ3S00.s:5054   .debug_loc:0000000000000563 .LLST37
+     /tmp/ccvQ3S00.s:5062   .debug_loc:0000000000000587 .LLST38
+     /tmp/ccvQ3S00.s:409    .text:00000000000001a4 .LVL45
+     /tmp/ccvQ3S00.s:413    .text:00000000000001b0 .LVL46
+     /tmp/ccvQ3S00.s:353    .text:000000000000016c .LBB90
+     /tmp/ccvQ3S00.s:360    .text:0000000000000170 .LBE90
+     /tmp/ccvQ3S00.s:5069   .debug_loc:00000000000005aa .LLST30
+     /tmp/ccvQ3S00.s:364    .text:0000000000000174 .LBB92
+     /tmp/ccvQ3S00.s:371    .text:0000000000000178 .LBE92
+     /tmp/ccvQ3S00.s:5076   .debug_loc:00000000000005cd .LLST31
+     /tmp/ccvQ3S00.s:5083   .debug_loc:00000000000005f0 .LLST32
+     /tmp/ccvQ3S00.s:423    .text:00000000000001b8 .LBB101
+     /tmp/ccvQ3S00.s:430    .text:00000000000001bc .LBE101
+     /tmp/ccvQ3S00.s:5090   .debug_loc:0000000000000613 .LLST39
+     /tmp/ccvQ3S00.s:84     .text:0000000000000068 .LFB45
+     /tmp/ccvQ3S00.s:321    .text:000000000000013c .LFE45
+     /tmp/ccvQ3S00.s:5703   .debug_str:00000000000009f1 .LASF198
+     /tmp/ccvQ3S00.s:5535   .debug_str:000000000000034e .LASF199
+     /tmp/ccvQ3S00.s:5097   .debug_loc:0000000000000636 .LLST1
+     /tmp/ccvQ3S00.s:5116   .debug_loc:0000000000000692 .LLST2
+     /tmp/ccvQ3S00.s:112    .text:0000000000000094 .LBB57
+     /tmp/ccvQ3S00.s:119    .text:0000000000000098 .LBE57
+     /tmp/ccvQ3S00.s:5127   .debug_loc:00000000000006c8 .LLST3
+     /tmp/ccvQ3S00.s:127    .text:00000000000000a0 .LBB59
+     /tmp/ccvQ3S00.s:134    .text:00000000000000a4 .LBE59
+     /tmp/ccvQ3S00.s:5134   .debug_loc:00000000000006eb .LLST4
+     /tmp/ccvQ3S00.s:166    .text:00000000000000cc .LBB61
+GAS LISTING /tmp/ccvQ3S00.s 			page 44
+
+
+     /tmp/ccvQ3S00.s:173    .text:00000000000000d0 .LBE61
+     /tmp/ccvQ3S00.s:5141   .debug_loc:000000000000070e .LLST5
+     /tmp/ccvQ3S00.s:5148   .debug_loc:0000000000000731 .LLST6
+     /tmp/ccvQ3S00.s:175    .text:00000000000000d0 .LBB63
+     /tmp/ccvQ3S00.s:182    .text:00000000000000d4 .LBE63
+     /tmp/ccvQ3S00.s:5155   .debug_loc:0000000000000754 .LLST7
+     /tmp/ccvQ3S00.s:183    .text:00000000000000d4 .LBB65
+     /tmp/ccvQ3S00.s:190    .text:00000000000000d8 .LBE65
+     /tmp/ccvQ3S00.s:5162   .debug_loc:0000000000000777 .LLST8
+     /tmp/ccvQ3S00.s:5169   .debug_loc:000000000000079a .LLST9
+     /tmp/ccvQ3S00.s:202    .text:00000000000000dc .LBB67
+     /tmp/ccvQ3S00.s:209    .text:00000000000000e0 .LBE67
+     /tmp/ccvQ3S00.s:5176   .debug_loc:00000000000007bd .LLST10
+     /tmp/ccvQ3S00.s:5183   .debug_loc:00000000000007e0 .LLST11
+     /tmp/ccvQ3S00.s:211    .text:00000000000000e0 .LBB69
+     /tmp/ccvQ3S00.s:218    .text:00000000000000e4 .LBE69
+     /tmp/ccvQ3S00.s:5190   .debug_loc:0000000000000803 .LLST12
+     /tmp/ccvQ3S00.s:225    .text:00000000000000ec .LBB71
+     /tmp/ccvQ3S00.s:233    .text:00000000000000f0 .LBE71
+     /tmp/ccvQ3S00.s:5197   .debug_loc:0000000000000826 .LLST13
+     /tmp/ccvQ3S00.s:5204   .debug_loc:0000000000000849 .LLST14
+     /tmp/ccvQ3S00.s:235    .text:00000000000000f0 .LBB73
+     /tmp/ccvQ3S00.s:242    .text:00000000000000f4 .LBE73
+     /tmp/ccvQ3S00.s:5211   .debug_loc:000000000000086c .LLST15
+     /tmp/ccvQ3S00.s:5218   .debug_loc:000000000000088f .LLST16
+     /tmp/ccvQ3S00.s:248    .text:00000000000000f8 .LBB75
+     /tmp/ccvQ3S00.s:255    .text:00000000000000fc .LBE75
+     /tmp/ccvQ3S00.s:5225   .debug_loc:00000000000008b2 .LLST17
+     /tmp/ccvQ3S00.s:5232   .debug_loc:00000000000008d5 .LLST18
+     /tmp/ccvQ3S00.s:260    .text:0000000000000100 .LBB77
+     /tmp/ccvQ3S00.s:267    .text:0000000000000104 .LBE77
+     /tmp/ccvQ3S00.s:5239   .debug_loc:00000000000008f8 .LLST19
+     /tmp/ccvQ3S00.s:5246   .debug_loc:000000000000091b .LLST20
+     /tmp/ccvQ3S00.s:149    .text:00000000000000bc .LBB79
+     /tmp/ccvQ3S00.s:156    .text:00000000000000c0 .LBE79
+     /tmp/ccvQ3S00.s:5253   .debug_loc:000000000000093e .LLST21
+     /tmp/ccvQ3S00.s:5260   .debug_loc:0000000000000961 .LLST22
+     /tmp/ccvQ3S00.s:280    .text:000000000000011c .LBB84
+     /tmp/ccvQ3S00.s:287    .text:0000000000000120 .LBE84
+     /tmp/ccvQ3S00.s:5267   .debug_loc:0000000000000984 .LLST23
+     /tmp/ccvQ3S00.s:5274   .debug_loc:00000000000009a7 .LLST24
+     /tmp/ccvQ3S00.s:289    .text:0000000000000120 .LBB86
+     /tmp/ccvQ3S00.s:296    .text:0000000000000124 .LBE86
+     /tmp/ccvQ3S00.s:5281   .debug_loc:00000000000009ca .LLST25
+     /tmp/ccvQ3S00.s:5288   .debug_loc:00000000000009ed .LLST26
+     /tmp/ccvQ3S00.s:301    .text:0000000000000128 .LBB88
+     /tmp/ccvQ3S00.s:308    .text:000000000000012c .LBE88
+     /tmp/ccvQ3S00.s:5295   .debug_loc:0000000000000a10 .LLST27
+     /tmp/ccvQ3S00.s:5302   .debug_loc:0000000000000a33 .LLST28
+     /tmp/ccvQ3S00.s:933    .text:00000000000004f4 .LFE44
+     /tmp/ccvQ3S00.s:5309   .debug_loc:0000000000000a56 .LLST54
+     /tmp/ccvQ3S00.s:5335   .debug_loc:0000000000000ac8 .LLST55
+     /tmp/ccvQ3S00.s:5361   .debug_loc:0000000000000b3a .LLST56
+     /tmp/ccvQ3S00.s:5387   .debug_loc:0000000000000bac .LLST57
+     /tmp/ccvQ3S00.s:870    .text:000000000000046c .LVL85
+     /tmp/ccvQ3S00.s:877    .text:0000000000000488 .LVL86
+     /tmp/ccvQ3S00.s:911    .text:00000000000004bc .LVL92
+GAS LISTING /tmp/ccvQ3S00.s 			page 45
+
+
+     /tmp/ccvQ3S00.s:919    .text:00000000000004d4 .LVL93
+     /tmp/ccvQ3S00.s:926    .text:00000000000004e8 .LVL94
+     /tmp/ccvQ3S00.s:930    .text:00000000000004f4 .LVL95
+     /tmp/ccvQ3S00.s:5831   .debug_str:0000000000000f15 .LASF200
+     /tmp/ccvQ3S00.s:5701   .debug_str:00000000000009da .LASF202
+     /tmp/ccvQ3S00.s:5779   .debug_str:0000000000000c87 .LASF201
+     /tmp/ccvQ3S00.s:5607   .debug_str:00000000000005e2 .LASF203
+     /tmp/ccvQ3S00.s:5855   .debug_str:000000000000100d .LASF211
+     /tmp/ccvQ3S00.s:5479   .debug_str:0000000000000137 .LASF212
+     /tmp/ccvQ3S00.s:44     .text:0000000000000040 .LVL3
+     /tmp/ccvQ3S00.s:51     .text:0000000000000044 .LVL4
+     /tmp/ccvQ3S00.s:1100   .text:00000000000005b8 .LVL106
+     /tmp/ccvQ3S00.s:1126   .text:00000000000005ec .LVL110
+     /tmp/ccvQ3S00.s:1021   .text:0000000000000538 .LVL97
+     /tmp/ccvQ3S00.s:1058   .text:0000000000000574 .LVL102
+     /tmp/ccvQ3S00.s:1062   .text:000000000000057c .LVL103
+     /tmp/ccvQ3S00.s:1028   .text:000000000000053c .LVL98
+     /tmp/ccvQ3S00.s:788    .text:00000000000003d4 .LVL80
+     /tmp/ccvQ3S00.s:800    .text:00000000000003e8 .LVL81
+     /tmp/ccvQ3S00.s:717    .text:0000000000000350 .LVL74
+     /tmp/ccvQ3S00.s:769    .text:00000000000003c8 .LVL78
+     /tmp/ccvQ3S00.s:772    .text:00000000000003cc .LVL79
+     /tmp/ccvQ3S00.s:651    .text:00000000000002ec .LVL70
+     /tmp/ccvQ3S00.s:677    .text:000000000000031c .LVL71
+     /tmp/ccvQ3S00.s:700    .text:0000000000000348 .LVL72
+     /tmp/ccvQ3S00.s:705    .text:000000000000034c .LVL73
+     /tmp/ccvQ3S00.s:609    .text:00000000000002ac .LVL66
+     /tmp/ccvQ3S00.s:637    .text:00000000000002e4 .LVL69
+     /tmp/ccvQ3S00.s:567    .text:000000000000026c .LVL62
+     /tmp/ccvQ3S00.s:595    .text:00000000000002a4 .LVL65
+     /tmp/ccvQ3S00.s:524    .text:000000000000022c .LVL58
+     /tmp/ccvQ3S00.s:553    .text:0000000000000264 .LVL61
+     /tmp/ccvQ3S00.s:481    .text:00000000000001ec .LVL54
+     /tmp/ccvQ3S00.s:510    .text:0000000000000224 .LVL57
+     /tmp/ccvQ3S00.s:369    .text:0000000000000178 .LVL41
+     /tmp/ccvQ3S00.s:377    .text:0000000000000180 .LVL42
+     /tmp/ccvQ3S00.s:393    .text:0000000000000198 .LVL43
+     /tmp/ccvQ3S00.s:416    .text:00000000000001b4 .LVL47
+     /tmp/ccvQ3S00.s:442    .text:00000000000001c4 .LVL51
+     /tmp/ccvQ3S00.s:459    .text:00000000000001d8 .LVL53
+     /tmp/ccvQ3S00.s:435    .text:00000000000001c0 .LVL50
+     /tmp/ccvQ3S00.s:403    .text:000000000000019c .LVL44
+     /tmp/ccvQ3S00.s:451    .text:00000000000001d0 .LVL52
+     /tmp/ccvQ3S00.s:352    .text:000000000000016c .LVL38
+     /tmp/ccvQ3S00.s:358    .text:0000000000000170 .LVL39
+     /tmp/ccvQ3S00.s:363    .text:0000000000000174 .LVL40
+     /tmp/ccvQ3S00.s:422    .text:00000000000001b8 .LVL48
+     /tmp/ccvQ3S00.s:428    .text:00000000000001bc .LVL49
+     /tmp/ccvQ3S00.s:106    .text:0000000000000090 .LVL7
+     /tmp/ccvQ3S00.s:137    .text:00000000000000a8 .LVL13
+     /tmp/ccvQ3S00.s:159    .text:00000000000000c4 .LVL16
+     /tmp/ccvQ3S00.s:221    .text:00000000000000e8 .LVL24
+     /tmp/ccvQ3S00.s:245    .text:00000000000000f8 .LVL28
+     /tmp/ccvQ3S00.s:259    .text:0000000000000100 .LVL30
+     /tmp/ccvQ3S00.s:272    .text:0000000000000110 .LVL32
+     /tmp/ccvQ3S00.s:300    .text:0000000000000128 .LVL36
+     /tmp/ccvQ3S00.s:279    .text:000000000000011c .LVL33
+GAS LISTING /tmp/ccvQ3S00.s 			page 46
+
+
+     /tmp/ccvQ3S00.s:111    .text:0000000000000094 .LVL8
+     /tmp/ccvQ3S00.s:117    .text:0000000000000098 .LVL9
+     /tmp/ccvQ3S00.s:126    .text:00000000000000a0 .LVL11
+     /tmp/ccvQ3S00.s:132    .text:00000000000000a4 .LVL12
+     /tmp/ccvQ3S00.s:165    .text:00000000000000cc .LVL17
+     /tmp/ccvQ3S00.s:171    .text:00000000000000d0 .LVL18
+     /tmp/ccvQ3S00.s:180    .text:00000000000000d4 .LVL19
+     /tmp/ccvQ3S00.s:188    .text:00000000000000d8 .LVL20
+     /tmp/ccvQ3S00.s:198    .text:00000000000000dc .LVL21
+     /tmp/ccvQ3S00.s:207    .text:00000000000000e0 .LVL22
+     /tmp/ccvQ3S00.s:216    .text:00000000000000e4 .LVL23
+     /tmp/ccvQ3S00.s:224    .text:00000000000000ec .LVL25
+     /tmp/ccvQ3S00.s:230    .text:00000000000000f0 .LVL26
+     /tmp/ccvQ3S00.s:240    .text:00000000000000f4 .LVL27
+     /tmp/ccvQ3S00.s:253    .text:00000000000000fc .LVL29
+     /tmp/ccvQ3S00.s:265    .text:0000000000000104 .LVL31
+     /tmp/ccvQ3S00.s:148    .text:00000000000000bc .LVL14
+     /tmp/ccvQ3S00.s:154    .text:00000000000000c0 .LVL15
+     /tmp/ccvQ3S00.s:285    .text:0000000000000120 .LVL34
+     /tmp/ccvQ3S00.s:294    .text:0000000000000124 .LVL35
+     /tmp/ccvQ3S00.s:306    .text:000000000000012c .LVL37
+     /tmp/ccvQ3S00.s:839    .text:0000000000000428 .LVL83
+     /tmp/ccvQ3S00.s:867    .text:0000000000000464 .LVL84
+     /tmp/ccvQ3S00.s:893    .text:00000000000004a0 .LVL87
+     /tmp/ccvQ3S00.s:903    .text:00000000000004b0 .LVL90
+     /tmp/ccvQ3S00.s:909    .text:00000000000004b4 .LVL91
+     /tmp/ccvQ3S00.s:896    .text:00000000000004a4 .LVL88
+     /tmp/ccvQ3S00.s:899    .text:00000000000004a8 .LVL89
+     /tmp/ccvQ3S00.s:1170   .debug_info:0000000000000000 .Ldebug_info0
+     /tmp/ccvQ3S00.s:107    .text:0000000000000090 .LBB56
+     /tmp/ccvQ3S00.s:139    .text:00000000000000a8 .LBE56
+     /tmp/ccvQ3S00.s:161    .text:00000000000000c4 .LBB81
+     /tmp/ccvQ3S00.s:192    .text:00000000000000d8 .LBE81
+     /tmp/ccvQ3S00.s:194    .text:00000000000000d8 .LBB82
+     /tmp/ccvQ3S00.s:199    .text:00000000000000dc .LBE82
+     /tmp/ccvQ3S00.s:201    .text:00000000000000dc .LBB83
+     /tmp/ccvQ3S00.s:274    .text:0000000000000110 .LBE83
+     /tmp/ccvQ3S00.s:396    .text:0000000000000198 .LBB94
+     /tmp/ccvQ3S00.s:418    .text:00000000000001b4 .LBE94
+     /tmp/ccvQ3S00.s:433    .text:00000000000001c0 .LBB103
+     /tmp/ccvQ3S00.s:463    .text:00000000000001d8 .LBE103
+     /tmp/ccvQ3S00.s:936    .gcc_except_table:0000000000000000 .LLSDA44
+
+UNDEFINED SYMBOLS
+_ZN5Riscv18exitSupervisorTrapEv
+_Z22switchSupervisorToUserv
+_Z11thread_exitv
+_ZN9Scheduler11getInstanceEv
+_ZN9Scheduler3putEP3TCB
+_ZN15MemoryAllocator11getInstanceEv
+_ZN15MemoryAllocator15allocateSegmentEm
+_ZN15MemoryAllocator17deallocateSegmentEPv
+_Unwind_Resume
+__gxx_personality_v0
+_ZN9Scheduler3getEv

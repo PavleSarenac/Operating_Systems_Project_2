@@ -1,6 +1,6 @@
 #include "../../../h/Testing/Testing_OS1/Buffer.hpp"
 
-Buffer::Buffer(int _cap) : cap(_cap + 1), head(0), tail(0) {
+BufferTestC::Buffer::Buffer(int _cap) : cap(_cap + 1), head(0), tail(0) {
     buffer = (int *)mem_alloc(sizeof(int) * cap);
     sem_open(&itemAvailable, 0);
     sem_open(&spaceAvailable, _cap);
@@ -8,7 +8,7 @@ Buffer::Buffer(int _cap) : cap(_cap + 1), head(0), tail(0) {
     sem_open(&mutexTail, 1);
 }
 
-Buffer::~Buffer() {
+BufferTestC::Buffer::~Buffer() {
     putc('\n');
     printString("Buffer deleted!\n");
     while (getCnt() > 0) {
@@ -26,7 +26,7 @@ Buffer::~Buffer() {
     sem_close(mutexHead);
 }
 
-void Buffer::put(int val) {
+void BufferTestC::Buffer::put(int val) {
     sem_wait(spaceAvailable);
 
     sem_wait(mutexTail);
@@ -38,7 +38,7 @@ void Buffer::put(int val) {
 
 }
 
-int Buffer::get() {
+int BufferTestC::Buffer::get() {
     sem_wait(itemAvailable);
 
     sem_wait(mutexHead);
@@ -52,7 +52,7 @@ int Buffer::get() {
     return ret;
 }
 
-int Buffer::getCnt() {
+int BufferTestC::Buffer::getCnt() {
     int ret;
 
     sem_wait(mutexHead);

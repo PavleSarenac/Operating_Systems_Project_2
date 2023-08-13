@@ -1,6 +1,6 @@
 #include "../../../h/Testing/Testing_OS1/Buffer_CPP_API.hpp"
 
-BufferCPP::BufferCPP(int _cap) : cap(_cap + 1), head(0), tail(0) {
+BufferTestCPP::BufferCPP::BufferCPP(int _cap) : cap(_cap + 1), head(0), tail(0) {
     buffer = (int *)mem_alloc(sizeof(int) * cap);
     itemAvailable = new Semaphore(0);
     spaceAvailable = new Semaphore(_cap);
@@ -8,7 +8,7 @@ BufferCPP::BufferCPP(int _cap) : cap(_cap + 1), head(0), tail(0) {
     mutexTail = new Semaphore(1);
 }
 
-BufferCPP::~BufferCPP() {
+BufferTestCPP::BufferCPP::~BufferCPP() {
     Console::putc('\n');
     printString("Buffer deleted!\n");
     while (getCnt()) {
@@ -26,7 +26,7 @@ BufferCPP::~BufferCPP() {
     delete mutexHead;
 }
 
-void BufferCPP::put(int val) {
+void BufferTestCPP::BufferCPP::put(int val) {
     spaceAvailable->wait();
 
     mutexTail->wait();
@@ -38,7 +38,7 @@ void BufferCPP::put(int val) {
 
 }
 
-int BufferCPP::get() {
+int BufferTestCPP::BufferCPP::get() {
     itemAvailable->wait();
 
     mutexHead->wait();
@@ -52,7 +52,7 @@ int BufferCPP::get() {
     return ret;
 }
 
-int BufferCPP::getCnt() {
+int BufferTestCPP::BufferCPP::getCnt() {
     int ret;
 
     mutexHead->wait();

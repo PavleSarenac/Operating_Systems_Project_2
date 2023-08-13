@@ -3,138 +3,141 @@
 
 #include "../../Code/SystemCalls/syscall_c.h"
 #include "Buffer.hpp"
+#include "Buffer_CPP_API.hpp"
 
-sem_t waitForAll;
+namespace ConsumerProducerSyncC {
+    sem_t waitForAll;
 
-struct thread_data {
-    int id;
-    Buffer *buffer;
-    sem_t wait;
-};
+    struct thread_data {
+        int id;
+        BufferTestCPP::BufferCPP *buffer;
+        sem_t wait;
+    };
 
-volatile int threadEnd = 0;
+    volatile int threadEnd = 0;
 
-void producerKeyboard(void *arg) {
-    struct thread_data *data = (struct thread_data *) arg;
+    void producerKeyboard(void *arg) {
+        struct thread_data *data = (struct thread_data *) arg;
 
-    int key;
-    int i = 0;
-    while ((key = getc()) != 0x1b) {
-        data->buffer->put(key);
-        i++;
+        int key;
+        int i = 0;
+        while ((key = getc()) != 0x1b) {
+            data->buffer->put(key);
+            i++;
 
-        if (i % (10 * data->id) == 0) {
-            thread_dispatch();
-        }
-    }
-
-    threadEnd = 1;
-    data->buffer->put('!');
-
-    sem_signal(data->wait);
-}
-
-void producer(void *arg) {
-    struct thread_data *data = (struct thread_data *) arg;
-
-    int i = 0;
-    while (!threadEnd) {
-        data->buffer->put(data->id + '0');
-        i++;
-
-        if (i % (10 * data->id) == 0) {
-            thread_dispatch();
-        }
-    }
-
-    sem_signal(data->wait);
-}
-
-void consumer(void *arg) {
-    struct thread_data *data = (struct thread_data *) arg;
-
-    int i = 0;
-    while (!threadEnd) {
-        int key = data->buffer->get();
-        i++;
-
-        putc(key);
-
-        if (i % (5 * data->id) == 0) {
-            thread_dispatch();
+            if (i % (10 * data->id) == 0) {
+                thread_dispatch();
+            }
         }
 
-        if (i % 80 == 0) {
-            putc('\n');
+        threadEnd = 1;
+        data->buffer->put('!');
+
+        sem_signal(data->wait);
+    }
+
+    void producer(void *arg) {
+        struct thread_data *data = (struct thread_data *) arg;
+
+        int i = 0;
+        while (!threadEnd) {
+            data->buffer->put(data->id + '0');
+            i++;
+
+            if (i % (10 * data->id) == 0) {
+                thread_dispatch();
+            }
         }
+
+        sem_signal(data->wait);
     }
 
-    while (data->buffer->getCnt() > 0) {
-        int key = data->buffer->get();
-        putc(key);
+    void consumer(void *arg) {
+        struct thread_data *data = (struct thread_data *) arg;
+
+        int i = 0;
+        while (!threadEnd) {
+            int key = data->buffer->get();
+            i++;
+
+            putc(key);
+
+            if (i % (5 * data->id) == 0) {
+                thread_dispatch();
+            }
+
+            if (i % 80 == 0) {
+                putc('\n');
+            }
+        }
+
+        while (data->buffer->getCnt() > 0) {
+            int key = data->buffer->get();
+            putc(key);
+        }
+
+        sem_signal(data->wait);
     }
 
-    sem_signal(data->wait);
-}
+    void Consumer_Producer_Sync_C_API_Test() {
+        char input[30];
+        int n, threadNum;
 
-void producerConsumer_C_API() {
-    char input[30];
-    int n, threadNum;
+        printString("Unesite broj proizvodjaca?\n");
+        getString(input, 30);
+        threadNum = stringToInt(input);
 
-    printString("Unesite broj proizvodjaca?\n");
-    getString(input, 30);
-    threadNum = stringToInt(input);
+        printString("Unesite velicinu bafera?\n");
+        getString(input, 30);
+        n = stringToInt(input);
 
-    printString("Unesite velicinu bafera?\n");
-    getString(input, 30);
-    n = stringToInt(input);
+        printString("Broj proizvodjaca "); printInt(threadNum);
+        printString(" i velicina bafera "); printInt(n);
+        printString(".\n");
 
-    printString("Broj proizvodjaca "); printInt(threadNum);
-    printString(" i velicina bafera "); printInt(n);
-    printString(".\n");
+        if(threadNum > n) {
+            printString("Broj proizvodjaca ne sme biti veci od velicine bafera!\n");
+            return;
+        } else if (threadNum < 1) {
+            printString("Broj proizvodjaca mora biti veci od nula!\n");
+            return;
+        }
 
-    if(threadNum > n) {
-        printString("Broj proizvodjaca ne sme biti veci od velicine bafera!\n");
-        return;
-    } else if (threadNum < 1) {
-        printString("Broj proizvodjaca mora biti veci od nula!\n");
-        return;
+        BufferTestCPP::BufferCPP *buffer = new BufferTestCPP::BufferCPP(n);
+
+        sem_open(&waitForAll, 0);
+
+        thread_t threads[threadNum];
+        thread_t consumerThread;
+
+        struct thread_data data[threadNum + 1];
+
+        data[threadNum].id = threadNum;
+        data[threadNum].buffer = buffer;
+        data[threadNum].wait = waitForAll;
+        thread_create(&consumerThread, consumer, data + threadNum);
+
+        for (int i = 0; i < threadNum; i++) {
+            data[i].id = i;
+            data[i].buffer = buffer;
+            data[i].wait = waitForAll;
+
+            thread_create(threads + i,
+                          i > 0 ? producer : producerKeyboard,
+                          data + i);
+        }
+
+        thread_dispatch();
+
+        for (int i = 0; i <= threadNum; i++) {
+            sem_wait(waitForAll);
+        }
+
+        sem_close(waitForAll);
+
+        delete buffer;
+
     }
-
-    Buffer *buffer = new Buffer(n);
-
-    sem_open(&waitForAll, 0);
-
-    thread_t threads[threadNum];
-    thread_t consumerThread;
-
-    struct thread_data data[threadNum + 1];
-
-    data[threadNum].id = threadNum;
-    data[threadNum].buffer = buffer;
-    data[threadNum].wait = waitForAll;
-    thread_create(&consumerThread, consumer, data + threadNum);
-
-    for (int i = 0; i < threadNum; i++) {
-        data[i].id = i;
-        data[i].buffer = buffer;
-        data[i].wait = waitForAll;
-
-        thread_create(threads + i,
-                      i > 0 ? producer : producerKeyboard,
-                      data + i);
-    }
-
-    thread_dispatch();
-
-    for (int i = 0; i <= threadNum; i++) {
-        sem_wait(waitForAll);
-    }
-
-    sem_close(waitForAll);
-
-    delete buffer;
-
 }
 
 #endif

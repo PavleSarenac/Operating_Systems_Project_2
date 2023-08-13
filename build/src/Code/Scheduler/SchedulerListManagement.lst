@@ -1,0 +1,660 @@
+GAS LISTING /tmp/cc22VICa.s 			page 1
+
+
+   1              		.file	"SchedulerListManagement.cpp"
+   2              		.option pic
+   3              		.option norelax
+   4              		.text
+   5              	.Ltext0:
+   6              		.align	2
+   7              		.globl	_Z12idleFunctionPv
+   9              	_Z12idleFunctionPv:
+  10              	.LFB44:
+  11              		.file 1 "src/Code/Scheduler/SchedulerListManagement.cpp"
+   1:src/Code/Scheduler/SchedulerListManagement.cpp **** #include "../../../h/Code/Thread/TCB.hpp"
+   2:src/Code/Scheduler/SchedulerListManagement.cpp **** 
+   3:src/Code/Scheduler/SchedulerListManagement.cpp **** // ovo je telo funkcije koje ce izvrsavati idle nit (besposlena, vrti se u beskonacnoj petlji)
+   4:src/Code/Scheduler/SchedulerListManagement.cpp **** // ona se daje procesoru samo onda kada nema drugih spremnih niti u scheduleru
+   5:src/Code/Scheduler/SchedulerListManagement.cpp **** [[noreturn]] void idleFunction(void* arg) { while (true) { } }
+  12              		.loc 1 5 43
+  13              		.cfi_startproc
+  14              	.LVL0:
+  15 0000 130101FF 		addi	sp,sp,-16
+  16              		.cfi_def_cfa_offset 16
+  17 0004 23348100 		sd	s0,8(sp)
+  18              		.cfi_offset 8, -8
+  19 0008 13040101 		addi	s0,sp,16
+  20              		.cfi_def_cfa 8, 0
+  21              	.L2:
+  22              		.loc 1 5 45 discriminator 1
+  23              		.loc 1 5 45 discriminator 1
+  24 000c 6F000000 		j	.L2
+  25              		.cfi_endproc
+  26              	.LFE44:
+  28              		.align	2
+  29              		.globl	_Z19removeFromSchedulerRP3TCBS1_
+  31              	_Z19removeFromSchedulerRP3TCBS1_:
+  32              	.LFB45:
+   6:src/Code/Scheduler/SchedulerListManagement.cpp **** 
+   7:src/Code/Scheduler/SchedulerListManagement.cpp **** // uzimamo element sa pocetka ulancane liste
+   8:src/Code/Scheduler/SchedulerListManagement.cpp **** TCB* removeFromScheduler(TCB*& head, TCB*& tail) {
+  33              		.loc 1 8 50
+  34              		.cfi_startproc
+  35              	.LVL1:
+  36 0010 130101FF 		addi	sp,sp,-16
+  37              		.cfi_def_cfa_offset 16
+  38 0014 23348100 		sd	s0,8(sp)
+  39              		.cfi_offset 8, -8
+  40 0018 13040101 		addi	s0,sp,16
+  41              		.cfi_def_cfa 8, 0
+  42 001c 93070500 		mv	a5,a0
+   9:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (!head || !tail) return nullptr; // ovaj slucaj moze da se dogodi samo ako idle nit jos nije
+  43              		.loc 1 9 5
+  44              		.loc 1 9 10 is_stmt 0
+  45 0020 03350500 		ld	a0,0(a0)
+  46              	.LVL2:
+  47              		.loc 1 9 5
+  48 0024 63020502 		beqz	a0,.L4
+  49              		.loc 1 9 19 discriminator 2
+  50 0028 03B70500 		ld	a4,0(a1)
+  51              		.loc 1 9 15 discriminator 2
+GAS LISTING /tmp/cc22VICa.s 			page 2
+
+
+  52 002c 63040702 		beqz	a4,.L6
+  10:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (head == tail) return head; // slucaj kada je u scheduleru samo idle nit - nju vracamo i ne 
+  53              		.loc 1 10 5 is_stmt 1
+  54 0030 630CE500 		beq	a0,a4,.L4
+  11:src/Code/Scheduler/SchedulerListManagement.cpp ****     TCB* thread = head;
+  55              		.loc 1 11 5
+  56              	.LVL3:
+  12:src/Code/Scheduler/SchedulerListManagement.cpp ****     head = head->getNextThreadScheduler();
+  57              		.loc 1 12 5
+  58              	.LBB26:
+  59              	.LBB27:
+  60              		.file 2 "src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp"
+   1:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** #ifndef TCB_HPP
+   2:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** #define TCB_HPP
+   3:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+   4:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** #include "../../../lib/hw.h"
+   5:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** #include "../Scheduler/Scheduler.hpp"
+   6:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** #include "../InterruptHandling/Riscv.hpp"
+   7:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+   8:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** // klasa TCB predstavlja apstrakciju niti
+   9:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** class TCB {
+  10:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** public:
+  11:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // definisanje korisnickog tipa Body - predstavljace pokazivac na void funkciju koja prima void
+  12:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     using Body = void (*)(void*);
+  13:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+  14:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // ova funkcija treba da napravi novu nit koja ce da izvrsava telo funkcije date parametrom bod
+  15:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // ako se prosledi nullptr, to znaci da treba napraviti nit koja ce da izvrsava main funkciju
+  16:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // u tom slucaju, u konstrukciji te niti ne treba je davati scheduleru na raspolaganje, jer bi 
+  17:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // zelimo da bas ta nit main-a nastavi da se izvrsava
+  18:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     static TCB* createThread(Body body, void* arg, void* stack, bool cppApi);
+  19:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+  20:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // obezbedjena enkapsulacija - atribut finished je privatan i moze se citati samo kroz getter m
+  21:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     bool getFinished() const { return finished; }
+  22:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setFinished(bool value) { finished = value; }
+  23:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+  24:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // ovaj metod vraca vremenski odsecak (kvantum) koji je dodeljen tekucem objektu klase TCB (nit
+  25:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // to je broj perioda tajmera - on govori koliko vremena ce se nit izvrsavati
+  26:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     uint64 getTimeSlice() const { return timeSlice; }
+  27:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+  28:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // ovaj metod vraca adresu funkcije koju treba da izvrsava tekuca nit
+  29:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     Body getBody() const { return body; }
+  30:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+  31:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // privatne atribute schedulerPrevThread i schedulerNextThread sam ispravno enkapsulirao jer su
+  32:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     // i mogu se modifikovati samo kroz setter metode, a mogu da se procitaju samo preko getter met
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getPrevThreadScheduler() const { return schedulerPrevThread; }
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+  35:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  61              		.loc 2 35 43
+  62              		.loc 2 35 50 is_stmt 0
+  63 0034 03378503 		ld	a4,56(a0)
+  64              	.LVL4:
+  65              	.LBE27:
+  66              	.LBE26:
+  67              		.loc 1 12 10
+  68 0038 23B0E700 		sd	a4,0(a5)
+  13:src/Code/Scheduler/SchedulerListManagement.cpp ****     thread->getNextThreadScheduler()->setPrevThreadScheduler(nullptr);
+  69              		.loc 1 13 5 is_stmt 1
+GAS LISTING /tmp/cc22VICa.s 			page 3
+
+
+  70              	.LVL5:
+  71              	.LBB28:
+  72              	.LBB29:
+  73              		.loc 2 35 43
+  74              		.loc 2 35 50 is_stmt 0
+  75 003c 83378503 		ld	a5,56(a0)
+  76              	.LVL6:
+  77              	.LBE29:
+  78              	.LBE28:
+  79              	.LBB30:
+  80              	.LBB31:
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  81              		.loc 2 34 46 is_stmt 1
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+  82              		.loc 2 34 66 is_stmt 0
+  83 0040 23B00704 		sd	zero,64(a5)
+  84              	.LVL7:
+  85              	.LBE31:
+  86              	.LBE30:
+  14:src/Code/Scheduler/SchedulerListManagement.cpp ****     thread->setNextThreadScheduler(nullptr);
+  87              		.loc 1 14 5 is_stmt 1
+  88              	.LBB32:
+  89              	.LBB33:
+  36:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setNextThreadScheduler(TCB* next) { schedulerNextThread = next; }
+  90              		.loc 2 36 46
+  91              		.loc 2 36 66 is_stmt 0
+  92 0044 233C0502 		sd	zero,56(a0)
+  93              	.LVL8:
+  94              	.LBE33:
+  95              	.LBE32:
+  15:src/Code/Scheduler/SchedulerListManagement.cpp ****     return thread;
+  96              		.loc 1 15 5 is_stmt 1
+  97              	.L4:
+  16:src/Code/Scheduler/SchedulerListManagement.cpp **** }
+  98              		.loc 1 16 1 is_stmt 0
+  99 0048 03348100 		ld	s0,8(sp)
+ 100              		.cfi_remember_state
+ 101              		.cfi_restore 8
+ 102              		.cfi_def_cfa 2, 16
+ 103 004c 13010101 		addi	sp,sp,16
+ 104              		.cfi_def_cfa_offset 0
+ 105 0050 67800000 		jr	ra
+ 106              	.LVL9:
+ 107              	.L6:
+ 108              		.cfi_restore_state
+   9:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (head == tail) return head; // slucaj kada je u scheduleru samo idle nit - nju vracamo i ne 
+ 109              		.loc 1 9 32
+ 110 0054 13050700 		mv	a0,a4
+ 111 0058 6FF01FFF 		j	.L4
+ 112              		.cfi_endproc
+ 113              	.LFE45:
+ 115              		.align	2
+ 116              		.globl	_Z19insertIntoSchedulerRP3TCBS1_S0_
+ 118              	_Z19insertIntoSchedulerRP3TCBS1_S0_:
+ 119              	.LFB46:
+  17:src/Code/Scheduler/SchedulerListManagement.cpp **** 
+  18:src/Code/Scheduler/SchedulerListManagement.cpp **** // umecemo u ulancanu listu; ukoliko prvi put umecemo, to je slucaj kada se umece idle nit;
+GAS LISTING /tmp/cc22VICa.s 			page 4
+
+
+  19:src/Code/Scheduler/SchedulerListManagement.cpp **** // kada budemo umetali sve naredne niti, umecemo ih tako da idle nit uvek bude poslednja;
+  20:src/Code/Scheduler/SchedulerListManagement.cpp **** // idle nit se nikada ne izbacuje iz scheduler-a nakon sto se ubaci u scheduler;
+  21:src/Code/Scheduler/SchedulerListManagement.cpp **** void insertIntoScheduler(TCB*& head, TCB*& tail, TCB* tcb) {
+ 120              		.loc 1 21 60 is_stmt 1
+ 121              		.cfi_startproc
+ 122              	.LVL10:
+ 123 005c 130101FF 		addi	sp,sp,-16
+ 124              		.cfi_def_cfa_offset 16
+ 125 0060 23348100 		sd	s0,8(sp)
+ 126              		.cfi_offset 8, -8
+ 127 0064 13040101 		addi	s0,sp,16
+ 128              		.cfi_def_cfa 8, 0
+  22:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (!tcb) return;
+ 129              		.loc 1 22 5
+ 130 0068 63040604 		beqz	a2,.L8
+  23:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (!head || !tail) { head = tail = tcb; return; } // ubacivanje idle niti na pocetku dok je jo
+ 131              		.loc 1 23 5
+ 132              		.loc 1 23 10 is_stmt 0
+ 133 006c 83370500 		ld	a5,0(a0)
+ 134              		.loc 1 23 5
+ 135 0070 63860704 		beqz	a5,.L10
+ 136              		.loc 1 23 19 discriminator 2
+ 137 0074 83B70500 		ld	a5,0(a1)
+ 138              		.loc 1 23 15 discriminator 2
+ 139 0078 63820704 		beqz	a5,.L10
+  24:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 140              		.loc 1 24 5 is_stmt 1
+ 141              	.LVL11:
+ 142              	.LBB34:
+ 143              	.LBB35:
+  29:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+ 144              		.loc 2 29 28
+  29:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp **** 
+ 145              		.loc 2 29 35 is_stmt 0
+ 146 007c 83360600 		ld	a3,0(a2)
+ 147              	.LVL12:
+ 148              	.LBE35:
+ 149              	.LBE34:
+ 150              		.loc 1 24 5
+ 151 0080 17070000 		lla	a4,_Z12idleFunctionPv
+ 151      13070700 
+ 152 0088 6384E602 		beq	a3,a4,.L8
+  25:src/Code/Scheduler/SchedulerListManagement.cpp ****     tcb->setNextThreadScheduler(tail);
+ 153              		.loc 1 25 5 is_stmt 1
+ 154              	.LVL13:
+ 155              	.LBB36:
+ 156              	.LBB37:
+ 157              		.loc 2 36 46
+ 158              		.loc 2 36 66 is_stmt 0
+ 159 008c 233CF602 		sd	a5,56(a2)
+ 160              	.LVL14:
+ 161              	.LBE37:
+ 162              	.LBE36:
+  26:src/Code/Scheduler/SchedulerListManagement.cpp ****     tcb->setPrevThreadScheduler(tail->getPrevThreadScheduler());
+ 163              		.loc 1 26 5 is_stmt 1
+ 164              	.LBB38:
+ 165              	.LBB39:
+GAS LISTING /tmp/cc22VICa.s 			page 5
+
+
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 166              		.loc 2 33 43
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 167              		.loc 2 33 50 is_stmt 0
+ 168 0090 83B70704 		ld	a5,64(a5)
+ 169              	.LVL15:
+ 170              	.LBE39:
+ 171              	.LBE38:
+ 172              	.LBB40:
+ 173              	.LBB41:
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 174              		.loc 2 34 46 is_stmt 1
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 175              		.loc 2 34 66 is_stmt 0
+ 176 0094 2330F604 		sd	a5,64(a2)
+ 177              	.LVL16:
+ 178              	.LBE41:
+ 179              	.LBE40:
+  27:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tail->getPrevThreadScheduler()) tail->getPrevThreadScheduler()->setNextThreadScheduler(tcb)
+ 180              		.loc 1 27 5 is_stmt 1
+ 181              		.loc 1 27 37 is_stmt 0
+ 182 0098 83B70500 		ld	a5,0(a1)
+ 183              	.LVL17:
+ 184              	.LBB42:
+ 185              	.LBB43:
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 186              		.loc 2 33 43 is_stmt 1
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 187              		.loc 2 33 50 is_stmt 0
+ 188 009c 83B70704 		ld	a5,64(a5)
+ 189              	.LVL18:
+ 190              	.LBE43:
+ 191              	.LBE42:
+ 192              		.loc 1 27 5
+ 193 00a0 63840702 		beqz	a5,.L12
+ 194              		.loc 1 27 41 is_stmt 1 discriminator 1
+ 195              	.LVL19:
+  33:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     void setPrevThreadScheduler(TCB* prev) { schedulerPrevThread = prev; }
+ 196              		.loc 2 33 43 discriminator 1
+ 197              	.LBB44:
+ 198              	.LBB45:
+ 199              		.loc 2 36 46 discriminator 1
+ 200              		.loc 2 36 66 is_stmt 0 discriminator 1
+ 201 00a4 23BCC702 		sd	a2,56(a5)
+ 202              	.LVL20:
+ 203              	.L13:
+ 204              	.LBE45:
+ 205              	.LBE44:
+  28:src/Code/Scheduler/SchedulerListManagement.cpp ****     else head = tcb;
+  29:src/Code/Scheduler/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 206              		.loc 1 29 5 is_stmt 1
+ 207              		.loc 1 29 33 is_stmt 0
+ 208 00a8 83B70500 		ld	a5,0(a1)
+ 209              	.LVL21:
+ 210              	.LBB46:
+ 211              	.LBB47:
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+GAS LISTING /tmp/cc22VICa.s 			page 6
+
+
+ 212              		.loc 2 34 46 is_stmt 1
+  34:src/Code/Scheduler/../../../h/Code/Thread/TCB.hpp ****     TCB* getNextThreadScheduler() const { return schedulerNextThread; }
+ 213              		.loc 2 34 66 is_stmt 0
+ 214 00ac 23B0C704 		sd	a2,64(a5)
+ 215              	.LVL22:
+ 216              	.L8:
+ 217              	.LBE47:
+ 218              	.LBE46:
+  30:src/Code/Scheduler/SchedulerListManagement.cpp **** }
+ 219              		.loc 1 30 1
+ 220 00b0 03348100 		ld	s0,8(sp)
+ 221              		.cfi_remember_state
+ 222              		.cfi_restore 8
+ 223              		.cfi_def_cfa 2, 16
+ 224 00b4 13010101 		addi	sp,sp,16
+ 225              		.cfi_def_cfa_offset 0
+ 226 00b8 67800000 		jr	ra
+ 227              	.L10:
+ 228              		.cfi_restore_state
+  23:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 229              		.loc 1 23 27 is_stmt 1 discriminator 3
+  23:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 230              		.loc 1 23 39 is_stmt 0 discriminator 3
+ 231 00bc 23B0C500 		sd	a2,0(a1)
+  23:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 232              		.loc 1 23 32 discriminator 3
+ 233 00c0 2330C500 		sd	a2,0(a0)
+  23:src/Code/Scheduler/SchedulerListManagement.cpp ****     if (tcb->getBody() == &idleFunction) return; // pokusaj ubacivanja idle niti kada je ona vec u 
+ 234              		.loc 1 23 46 is_stmt 1 discriminator 3
+ 235 00c4 6FF0DFFE 		j	.L8
+ 236              	.L12:
+  28:src/Code/Scheduler/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 237              		.loc 1 28 10
+  28:src/Code/Scheduler/SchedulerListManagement.cpp ****     tail->setPrevThreadScheduler(tcb);
+ 238              		.loc 1 28 15 is_stmt 0
+ 239 00c8 2330C500 		sd	a2,0(a0)
+ 240 00cc 6FF0DFFD 		j	.L13
+ 241              		.cfi_endproc
+ 242              	.LFE46:
+ 244              	.Letext0:
+ 245              		.file 3 "src/Code/Scheduler/../../../h/Code/Thread/../../../lib/hw.h"
+GAS LISTING /tmp/cc22VICa.s 			page 7
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 SchedulerListManagement.cpp
+     /tmp/cc22VICa.s:9      .text:0000000000000000 _Z12idleFunctionPv
+     /tmp/cc22VICa.s:13     .text:0000000000000000 .L0 
+     /tmp/cc22VICa.s:15     .text:0000000000000000 .L0 
+     /tmp/cc22VICa.s:16     .text:0000000000000004 .L0 
+     /tmp/cc22VICa.s:18     .text:0000000000000008 .L0 
+     /tmp/cc22VICa.s:20     .text:000000000000000c .L0 
+     /tmp/cc22VICa.s:23     .text:000000000000000c .L0 
+     /tmp/cc22VICa.s:24     .text:000000000000000c .L0 
+     /tmp/cc22VICa.s:25     .text:0000000000000010 .L0 
+     /tmp/cc22VICa.s:31     .text:0000000000000010 _Z19removeFromSchedulerRP3TCBS1_
+     /tmp/cc22VICa.s:34     .text:0000000000000010 .L0 
+     /tmp/cc22VICa.s:36     .text:0000000000000010 .L0 
+     /tmp/cc22VICa.s:37     .text:0000000000000014 .L0 
+     /tmp/cc22VICa.s:39     .text:0000000000000018 .L0 
+     /tmp/cc22VICa.s:41     .text:000000000000001c .L0 
+     /tmp/cc22VICa.s:44     .text:0000000000000020 .L0 
+     /tmp/cc22VICa.s:45     .text:0000000000000020 .L0 
+     /tmp/cc22VICa.s:48     .text:0000000000000024 .L0 
+     /tmp/cc22VICa.s:50     .text:0000000000000028 .L0 
+     /tmp/cc22VICa.s:52     .text:000000000000002c .L0 
+     /tmp/cc22VICa.s:54     .text:0000000000000030 .L0 
+     /tmp/cc22VICa.s:57     .text:0000000000000034 .L0 
+     /tmp/cc22VICa.s:61     .text:0000000000000034 .L0 
+     /tmp/cc22VICa.s:62     .text:0000000000000034 .L0 
+     /tmp/cc22VICa.s:63     .text:0000000000000034 .L0 
+     /tmp/cc22VICa.s:68     .text:0000000000000038 .L0 
+     /tmp/cc22VICa.s:73     .text:000000000000003c .L0 
+     /tmp/cc22VICa.s:74     .text:000000000000003c .L0 
+     /tmp/cc22VICa.s:75     .text:000000000000003c .L0 
+     /tmp/cc22VICa.s:82     .text:0000000000000040 .L0 
+     /tmp/cc22VICa.s:83     .text:0000000000000040 .L0 
+     /tmp/cc22VICa.s:90     .text:0000000000000044 .L0 
+     /tmp/cc22VICa.s:91     .text:0000000000000044 .L0 
+     /tmp/cc22VICa.s:92     .text:0000000000000044 .L0 
+     /tmp/cc22VICa.s:98     .text:0000000000000048 .L0 
+     /tmp/cc22VICa.s:99     .text:0000000000000048 .L0 
+     /tmp/cc22VICa.s:100    .text:000000000000004c .L0 
+     /tmp/cc22VICa.s:101    .text:000000000000004c .L0 
+     /tmp/cc22VICa.s:102    .text:000000000000004c .L0 
+     /tmp/cc22VICa.s:104    .text:0000000000000050 .L0 
+     /tmp/cc22VICa.s:108    .text:0000000000000054 .L0 
+     /tmp/cc22VICa.s:110    .text:0000000000000054 .L0 
+     /tmp/cc22VICa.s:112    .text:000000000000005c .L0 
+     /tmp/cc22VICa.s:118    .text:000000000000005c _Z19insertIntoSchedulerRP3TCBS1_S0_
+     /tmp/cc22VICa.s:121    .text:000000000000005c .L0 
+     /tmp/cc22VICa.s:123    .text:000000000000005c .L0 
+     /tmp/cc22VICa.s:124    .text:0000000000000060 .L0 
+     /tmp/cc22VICa.s:126    .text:0000000000000064 .L0 
+     /tmp/cc22VICa.s:128    .text:0000000000000068 .L0 
+     /tmp/cc22VICa.s:130    .text:0000000000000068 .L0 
+     /tmp/cc22VICa.s:132    .text:000000000000006c .L0 
+     /tmp/cc22VICa.s:133    .text:000000000000006c .L0 
+     /tmp/cc22VICa.s:135    .text:0000000000000070 .L0 
+     /tmp/cc22VICa.s:137    .text:0000000000000074 .L0 
+     /tmp/cc22VICa.s:139    .text:0000000000000078 .L0 
+GAS LISTING /tmp/cc22VICa.s 			page 8
+
+
+     /tmp/cc22VICa.s:144    .text:000000000000007c .L0 
+     /tmp/cc22VICa.s:145    .text:000000000000007c .L0 
+     /tmp/cc22VICa.s:146    .text:000000000000007c .L0 
+     /tmp/cc22VICa.s:151    .text:0000000000000080 .L0 
+     /tmp/cc22VICa.s:157    .text:000000000000008c .L0 
+     /tmp/cc22VICa.s:158    .text:000000000000008c .L0 
+     /tmp/cc22VICa.s:159    .text:000000000000008c .L0 
+     /tmp/cc22VICa.s:166    .text:0000000000000090 .L0 
+     /tmp/cc22VICa.s:167    .text:0000000000000090 .L0 
+     /tmp/cc22VICa.s:168    .text:0000000000000090 .L0 
+     /tmp/cc22VICa.s:175    .text:0000000000000094 .L0 
+     /tmp/cc22VICa.s:176    .text:0000000000000094 .L0 
+     /tmp/cc22VICa.s:181    .text:0000000000000098 .L0 
+     /tmp/cc22VICa.s:182    .text:0000000000000098 .L0 
+     /tmp/cc22VICa.s:187    .text:000000000000009c .L0 
+     /tmp/cc22VICa.s:188    .text:000000000000009c .L0 
+     /tmp/cc22VICa.s:193    .text:00000000000000a0 .L0 
+     /tmp/cc22VICa.s:196    .text:00000000000000a4 .L0 
+     /tmp/cc22VICa.s:199    .text:00000000000000a4 .L0 
+     /tmp/cc22VICa.s:200    .text:00000000000000a4 .L0 
+     /tmp/cc22VICa.s:201    .text:00000000000000a4 .L0 
+     /tmp/cc22VICa.s:207    .text:00000000000000a8 .L0 
+     /tmp/cc22VICa.s:208    .text:00000000000000a8 .L0 
+     /tmp/cc22VICa.s:213    .text:00000000000000ac .L0 
+     /tmp/cc22VICa.s:214    .text:00000000000000ac .L0 
+     /tmp/cc22VICa.s:220    .text:00000000000000b0 .L0 
+     /tmp/cc22VICa.s:221    .text:00000000000000b4 .L0 
+     /tmp/cc22VICa.s:222    .text:00000000000000b4 .L0 
+     /tmp/cc22VICa.s:223    .text:00000000000000b4 .L0 
+     /tmp/cc22VICa.s:225    .text:00000000000000b8 .L0 
+     /tmp/cc22VICa.s:228    .text:00000000000000bc .L0 
+     /tmp/cc22VICa.s:230    .text:00000000000000bc .L0 
+     /tmp/cc22VICa.s:231    .text:00000000000000bc .L0 
+     /tmp/cc22VICa.s:233    .text:00000000000000c0 .L0 
+     /tmp/cc22VICa.s:235    .text:00000000000000c4 .L0 
+     /tmp/cc22VICa.s:238    .text:00000000000000c8 .L0 
+     /tmp/cc22VICa.s:239    .text:00000000000000c8 .L0 
+     /tmp/cc22VICa.s:241    .text:00000000000000d0 .L0 
+     /tmp/cc22VICa.s:246    .text:00000000000000d0 .L0 
+     /tmp/cc22VICa.s:151    .text:0000000000000080 .L0 
+     /tmp/cc22VICa.s:21     .text:000000000000000c .L2
+     /tmp/cc22VICa.s:97     .text:0000000000000048 .L4
+     /tmp/cc22VICa.s:107    .text:0000000000000054 .L6
+     /tmp/cc22VICa.s:216    .text:00000000000000b0 .L8
+     /tmp/cc22VICa.s:227    .text:00000000000000bc .L10
+     /tmp/cc22VICa.s:236    .text:00000000000000c8 .L12
+     /tmp/cc22VICa.s:203    .text:00000000000000a8 .L13
+     /tmp/cc22VICa.s:1304   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+     /tmp/cc22VICa.s:2399   .debug_str:0000000000000766 .LASF113
+     /tmp/cc22VICa.s:2347   .debug_str:000000000000058d .LASF114
+     /tmp/cc22VICa.s:2405   .debug_str:000000000000084e .LASF115
+     /tmp/cc22VICa.s:5      .text:0000000000000000 .Ltext0
+     /tmp/cc22VICa.s:244    .text:00000000000000d0 .Letext0
+     /tmp/cc22VICa.s:2197   .debug_line:0000000000000000 .Ldebug_line0
+     /tmp/cc22VICa.s:2291   .debug_str:0000000000000342 .LASF0
+     /tmp/cc22VICa.s:2309   .debug_str:0000000000000402 .LASF1
+     /tmp/cc22VICa.s:2361   .debug_str:0000000000000634 .LASF2
+GAS LISTING /tmp/cc22VICa.s 			page 9
+
+
+     /tmp/cc22VICa.s:2367   .debug_str:000000000000065e .LASF4
+     /tmp/cc22VICa.s:2297   .debug_str:0000000000000372 .LASF3
+     /tmp/cc22VICa.s:2215   .debug_str:00000000000000a4 .LASF5
+     /tmp/cc22VICa.s:2341   .debug_str:000000000000054f .LASF6
+     /tmp/cc22VICa.s:2301   .debug_str:00000000000003a7 .LASF7
+     /tmp/cc22VICa.s:2279   .debug_str:00000000000002c8 .LASF8
+     /tmp/cc22VICa.s:2285   .debug_str:00000000000002f7 .LASF9
+     /tmp/cc22VICa.s:2241   .debug_str:000000000000017e .LASF10
+     /tmp/cc22VICa.s:2273   .debug_str:00000000000002a8 .LASF11
+     /tmp/cc22VICa.s:2249   .debug_str:00000000000001d7 .LASF12
+     /tmp/cc22VICa.s:2239   .debug_str:000000000000016e .LASF13
+     /tmp/cc22VICa.s:2387   .debug_str:0000000000000706 .LASF14
+     /tmp/cc22VICa.s:2263   .debug_str:0000000000000256 .LASF15
+     /tmp/cc22VICa.s:2379   .debug_str:00000000000006c9 .LASF16
+     /tmp/cc22VICa.s:2391   .debug_str:000000000000071b .LASF116
+     /tmp/cc22VICa.s:2385   .debug_str:00000000000006f9 .LASF17
+     /tmp/cc22VICa.s:2355   .debug_str:00000000000005f7 .LASF19
+     /tmp/cc22VICa.s:2339   .debug_str:000000000000054a .LASF117
+     /tmp/cc22VICa.s:2329   .debug_str:00000000000004f7 .LASF21
+     /tmp/cc22VICa.s:2325   .debug_str:00000000000004c0 .LASF23
+     /tmp/cc22VICa.s:2227   .debug_str:00000000000000ff .LASF18
+     /tmp/cc22VICa.s:2411   .debug_str:000000000000088d .LASF20
+     /tmp/cc22VICa.s:2311   .debug_str:0000000000000415 .LASF22
+     /tmp/cc22VICa.s:2415   .debug_str:00000000000008ad .LASF24
+     /tmp/cc22VICa.s:2349   .debug_str:00000000000005bc .LASF25
+     /tmp/cc22VICa.s:2295   .debug_str:000000000000035f .LASF26
+     /tmp/cc22VICa.s:2269   .debug_str:000000000000027d .LASF27
+     /tmp/cc22VICa.s:2299   .debug_str:0000000000000384 .LASF28
+     /tmp/cc22VICa.s:2237   .debug_str:0000000000000157 .LASF29
+     /tmp/cc22VICa.s:2287   .debug_str:0000000000000305 .LASF30
+     /tmp/cc22VICa.s:2425   .debug_str:0000000000000926 .LASF31
+     /tmp/cc22VICa.s:2205   .debug_str:0000000000000035 .LASF32
+     /tmp/cc22VICa.s:2333   .debug_str:0000000000000508 .LASF33
+     /tmp/cc22VICa.s:2323   .debug_str:000000000000049c .LASF34
+     /tmp/cc22VICa.s:2381   .debug_str:00000000000006df .LASF35
+     /tmp/cc22VICa.s:2247   .debug_str:00000000000001b7 .LASF37
+     /tmp/cc22VICa.s:2225   .debug_str:00000000000000ed .LASF65
+     /tmp/cc22VICa.s:2201   .debug_str:0000000000000013 .LASF67
+     /tmp/cc22VICa.s:2417   .debug_str:00000000000008c6 .LASF36
+     /tmp/cc22VICa.s:2221   .debug_str:00000000000000c7 .LASF38
+     /tmp/cc22VICa.s:2345   .debug_str:000000000000057a .LASF39
+     /tmp/cc22VICa.s:2423   .debug_str:0000000000000907 .LASF40
+     /tmp/cc22VICa.s:2337   .debug_str:0000000000000537 .LASF41
+     /tmp/cc22VICa.s:2435   .debug_str:000000000000097f .LASF42
+     /tmp/cc22VICa.s:2283   .debug_str:00000000000002e4 .LASF43
+     /tmp/cc22VICa.s:2327   .debug_str:00000000000004d8 .LASF44
+     /tmp/cc22VICa.s:2199   .debug_str:0000000000000000 .LASF45
+     /tmp/cc22VICa.s:2307   .debug_str:00000000000003e2 .LASF46
+     /tmp/cc22VICa.s:2261   .debug_str:0000000000000249 .LASF47
+     /tmp/cc22VICa.s:2343   .debug_str:0000000000000562 .LASF48
+     /tmp/cc22VICa.s:2315   .debug_str:000000000000043b .LASF49
+     /tmp/cc22VICa.s:2289   .debug_str:0000000000000329 .LASF50
+     /tmp/cc22VICa.s:2219   .debug_str:00000000000000b0 .LASF51
+     /tmp/cc22VICa.s:2353   .debug_str:00000000000005d4 .LASF52
+     /tmp/cc22VICa.s:2229   .debug_str:000000000000010b .LASF53
+     /tmp/cc22VICa.s:2251   .debug_str:00000000000001e7 .LASF54
+     /tmp/cc22VICa.s:2373   .debug_str:000000000000067b .LASF55
+GAS LISTING /tmp/cc22VICa.s 			page 10
+
+
+     /tmp/cc22VICa.s:2393   .debug_str:0000000000000723 .LASF56
+     /tmp/cc22VICa.s:2235   .debug_str:0000000000000140 .LASF57
+     /tmp/cc22VICa.s:2427   .debug_str:000000000000093d .LASF58
+     /tmp/cc22VICa.s:2429   .debug_str:0000000000000960 .LASF59
+     /tmp/cc22VICa.s:2305   .debug_str:00000000000003ca .LASF60
+     /tmp/cc22VICa.s:2433   .debug_str:0000000000000972 .LASF61
+     /tmp/cc22VICa.s:2281   .debug_str:00000000000002d8 .LASF62
+     /tmp/cc22VICa.s:2233   .debug_str:0000000000000130 .LASF63
+     /tmp/cc22VICa.s:2277   .debug_str:00000000000002bc .LASF64
+     /tmp/cc22VICa.s:2293   .debug_str:000000000000034f .LASF66
+     /tmp/cc22VICa.s:2321   .debug_str:000000000000048f .LASF68
+     /tmp/cc22VICa.s:2377   .debug_str:00000000000006b6 .LASF69
+     /tmp/cc22VICa.s:2363   .debug_str:0000000000000642 .LASF70
+     /tmp/cc22VICa.s:2369   .debug_str:0000000000000665 .LASF71
+     /tmp/cc22VICa.s:2209   .debug_str:0000000000000080 .LASF72
+     /tmp/cc22VICa.s:2211   .debug_str:000000000000008c .LASF118
+     /tmp/cc22VICa.s:2401   .debug_str:000000000000082a .LASF79
+     /tmp/cc22VICa.s:2317   .debug_str:0000000000000448 .LASF81
+     /tmp/cc22VICa.s:2243   .debug_str:000000000000018d .LASF73
+     /tmp/cc22VICa.s:2335   .debug_str:000000000000051f .LASF74
+     /tmp/cc22VICa.s:2259   .debug_str:0000000000000240 .LASF75
+     /tmp/cc22VICa.s:2245   .debug_str:00000000000001a4 .LASF77
+     /tmp/cc22VICa.s:2231   .debug_str:0000000000000122 .LASF76
+     /tmp/cc22VICa.s:2313   .debug_str:0000000000000422 .LASF78
+     /tmp/cc22VICa.s:2255   .debug_str:000000000000021f .LASF80
+     /tmp/cc22VICa.s:2207   .debug_str:0000000000000058 .LASF82
+     /tmp/cc22VICa.s:2371   .debug_str:000000000000066a .LASF91
+     /tmp/cc22VICa.s:2203   .debug_str:0000000000000030 .LASF83
+     /tmp/cc22VICa.s:2403   .debug_str:0000000000000844 .LASF84
+     /tmp/cc22VICa.s:2431   .debug_str:000000000000096c .LASF85
+     /tmp/cc22VICa.s:2409   .debug_str:0000000000000885 .LASF86
+     /tmp/cc22VICa.s:2389   .debug_str:0000000000000712 .LASF87
+     /tmp/cc22VICa.s:2407   .debug_str:0000000000000871 .LASF88
+     /tmp/cc22VICa.s:2359   .debug_str:0000000000000620 .LASF89
+     /tmp/cc22VICa.s:2267   .debug_str:0000000000000273 .LASF90
+     /tmp/cc22VICa.s:2213   .debug_str:000000000000009a .LASF92
+     /tmp/cc22VICa.s:2419   .debug_str:00000000000008dc .LASF93
+     /tmp/cc22VICa.s:2303   .debug_str:00000000000003ba .LASF94
+     /tmp/cc22VICa.s:2351   .debug_str:00000000000005c4 .LASF95
+     /tmp/cc22VICa.s:2319   .debug_str:000000000000047b .LASF96
+     /tmp/cc22VICa.s:2253   .debug_str:000000000000020b .LASF97
+     /tmp/cc22VICa.s:2365   .debug_str:000000000000064f .LASF98
+     /tmp/cc22VICa.s:2413   .debug_str:00000000000008a4 .LASF99
+     /tmp/cc22VICa.s:2357   .debug_str:000000000000061b .LASF100
+     /tmp/cc22VICa.s:2271   .debug_str:0000000000000294 .LASF101
+     /tmp/cc22VICa.s:2375   .debug_str:0000000000000692 .LASF102
+     /tmp/cc22VICa.s:119    .text:000000000000005c .LFB46
+     /tmp/cc22VICa.s:242    .text:00000000000000d0 .LFE46
+     /tmp/cc22VICa.s:2383   .debug_str:00000000000006f4 .LASF103
+     /tmp/cc22VICa.s:2331   .debug_str:0000000000000503 .LASF104
+     /tmp/cc22VICa.s:142    .text:000000000000007c .LBB34
+     /tmp/cc22VICa.s:149    .text:0000000000000080 .LBE34
+     /tmp/cc22VICa.s:2034   .debug_loc:0000000000000000 .LLST8
+     /tmp/cc22VICa.s:155    .text:000000000000008c .LBB36
+     /tmp/cc22VICa.s:162    .text:0000000000000090 .LBE36
+     /tmp/cc22VICa.s:2041   .debug_loc:0000000000000023 .LLST9
+     /tmp/cc22VICa.s:2048   .debug_loc:0000000000000046 .LLST10
+GAS LISTING /tmp/cc22VICa.s 			page 11
+
+
+     /tmp/cc22VICa.s:164    .text:0000000000000090 .LBB38
+     /tmp/cc22VICa.s:171    .text:0000000000000094 .LBE38
+     /tmp/cc22VICa.s:2055   .debug_loc:0000000000000069 .LLST11
+     /tmp/cc22VICa.s:172    .text:0000000000000094 .LBB40
+     /tmp/cc22VICa.s:179    .text:0000000000000098 .LBE40
+     /tmp/cc22VICa.s:2062   .debug_loc:000000000000008c .LLST12
+     /tmp/cc22VICa.s:2069   .debug_loc:00000000000000af .LLST13
+     /tmp/cc22VICa.s:184    .text:000000000000009c .LBB42
+     /tmp/cc22VICa.s:191    .text:00000000000000a0 .LBE42
+     /tmp/cc22VICa.s:2076   .debug_loc:00000000000000d2 .LLST14
+     /tmp/cc22VICa.s:197    .text:00000000000000a4 .LBB44
+     /tmp/cc22VICa.s:205    .text:00000000000000a8 .LBE44
+     /tmp/cc22VICa.s:2083   .debug_loc:00000000000000f5 .LLST15
+     /tmp/cc22VICa.s:2090   .debug_loc:0000000000000118 .LLST16
+     /tmp/cc22VICa.s:210    .text:00000000000000ac .LBB46
+     /tmp/cc22VICa.s:218    .text:00000000000000b0 .LBE46
+     /tmp/cc22VICa.s:2097   .debug_loc:000000000000013b .LLST17
+     /tmp/cc22VICa.s:2104   .debug_loc:000000000000015e .LLST18
+     /tmp/cc22VICa.s:2395   .debug_str:0000000000000745 .LASF106
+     /tmp/cc22VICa.s:2421   .debug_str:00000000000008e6 .LASF108
+     /tmp/cc22VICa.s:32     .text:0000000000000010 .LFB45
+     /tmp/cc22VICa.s:113    .text:000000000000005c .LFE45
+     /tmp/cc22VICa.s:2111   .debug_loc:0000000000000181 .LLST0
+     /tmp/cc22VICa.s:2265   .debug_str:000000000000026c .LASF105
+     /tmp/cc22VICa.s:2133   .debug_loc:00000000000001e0 .LLST1
+     /tmp/cc22VICa.s:58     .text:0000000000000034 .LBB26
+     /tmp/cc22VICa.s:66     .text:0000000000000038 .LBE26
+     /tmp/cc22VICa.s:2140   .debug_loc:0000000000000203 .LLST2
+     /tmp/cc22VICa.s:71     .text:000000000000003c .LBB28
+     /tmp/cc22VICa.s:78     .text:0000000000000040 .LBE28
+     /tmp/cc22VICa.s:2147   .debug_loc:0000000000000226 .LLST3
+     /tmp/cc22VICa.s:79     .text:0000000000000040 .LBB30
+     /tmp/cc22VICa.s:86     .text:0000000000000044 .LBE30
+     /tmp/cc22VICa.s:2154   .debug_loc:0000000000000249 .LLST4
+     /tmp/cc22VICa.s:2162   .debug_loc:000000000000026d .LLST5
+     /tmp/cc22VICa.s:88     .text:0000000000000044 .LBB32
+     /tmp/cc22VICa.s:95     .text:0000000000000048 .LBE32
+     /tmp/cc22VICa.s:2169   .debug_loc:0000000000000290 .LLST6
+     /tmp/cc22VICa.s:2177   .debug_loc:00000000000002b4 .LLST7
+     /tmp/cc22VICa.s:2397   .debug_str:0000000000000759 .LASF107
+     /tmp/cc22VICa.s:2257   .debug_str:000000000000022d .LASF109
+     /tmp/cc22VICa.s:10     .text:0000000000000000 .LFB44
+     /tmp/cc22VICa.s:26     .text:0000000000000010 .LFE44
+     /tmp/cc22VICa.s:2275   .debug_str:00000000000002b7 .LASF110
+     /tmp/cc22VICa.s:2217   .debug_str:00000000000000ab .LASF111
+     /tmp/cc22VICa.s:2223   .debug_str:00000000000000e8 .LASF112
+     /tmp/cc22VICa.s:141    .text:000000000000007c .LVL11
+     /tmp/cc22VICa.s:147    .text:0000000000000080 .LVL12
+     /tmp/cc22VICa.s:154    .text:000000000000008c .LVL13
+     /tmp/cc22VICa.s:160    .text:0000000000000090 .LVL14
+     /tmp/cc22VICa.s:169    .text:0000000000000094 .LVL15
+     /tmp/cc22VICa.s:177    .text:0000000000000098 .LVL16
+     /tmp/cc22VICa.s:183    .text:000000000000009c .LVL17
+     /tmp/cc22VICa.s:189    .text:00000000000000a0 .LVL18
+     /tmp/cc22VICa.s:195    .text:00000000000000a4 .LVL19
+     /tmp/cc22VICa.s:202    .text:00000000000000a8 .LVL20
+     /tmp/cc22VICa.s:209    .text:00000000000000ac .LVL21
+GAS LISTING /tmp/cc22VICa.s 			page 12
+
+
+     /tmp/cc22VICa.s:215    .text:00000000000000b0 .LVL22
+     /tmp/cc22VICa.s:35     .text:0000000000000010 .LVL1
+     /tmp/cc22VICa.s:46     .text:0000000000000024 .LVL2
+     /tmp/cc22VICa.s:76     .text:0000000000000040 .LVL6
+     /tmp/cc22VICa.s:106    .text:0000000000000054 .LVL9
+     /tmp/cc22VICa.s:56     .text:0000000000000034 .LVL3
+     /tmp/cc22VICa.s:93     .text:0000000000000048 .LVL8
+     /tmp/cc22VICa.s:64     .text:0000000000000038 .LVL4
+     /tmp/cc22VICa.s:70     .text:000000000000003c .LVL5
+     /tmp/cc22VICa.s:84     .text:0000000000000044 .LVL7
+     /tmp/cc22VICa.s:247    .debug_info:0000000000000000 .Ldebug_info0
+
+NO UNDEFINED SYMBOLS

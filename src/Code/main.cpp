@@ -8,118 +8,19 @@
 #include "../../h/Testing/Testing_OS1/Consumer_Producer_CPP_Sync_API_Test.hpp"
 #include "../../h/Testing/Testing_OS1/ThreadSleep_C_API_Test.hpp"
 #include "../../h/Testing/Testing_OS1/Consumer_Producer_CPP_API_Test.hpp"
-
-Semaphore* myOwnMutex;
-Semaphore* myOwnWaitForAll;
-
-class A : public PeriodicThread {
-public:
-    explicit A(time_t period) : PeriodicThread(period) {}
-
-protected:
-    void run() override {
-        while (true && !shouldThisThreadEnd) {
-            periodicActivation();
-            time_sleep(sleepTime);
-        }
-        myOwnWaitForAll->signal();
-    }
-
-private:
-    void periodicActivation() override {
-        myOwnMutex->wait();
-        putc('A');
-        putc('\n');
-        myOwnMutex->signal();
-    }
-};
-
-class B : public PeriodicThread {
-public:
-    explicit B(time_t period) : PeriodicThread(period) {}
-
-protected:
-    void run() override {
-        while (true && !shouldThisThreadEnd) {
-            periodicActivation();
-            time_sleep(sleepTime);
-        }
-        myOwnWaitForAll->signal();
-    }
-
-private:
-    void periodicActivation() override {
-        myOwnMutex->wait();
-        putc('B');
-        putc('\n');
-        myOwnMutex->signal();
-    }
-};
-
-class C : public PeriodicThread {
-public:
-    explicit C(time_t period) : PeriodicThread(period) {}
-
-protected:
-    void run() override {
-        while (true && !shouldThisThreadEnd) {
-            periodicActivation();
-            time_sleep(sleepTime);
-        }
-        myOwnWaitForAll->signal();
-    }
-
-private:
-    void periodicActivation() override {
-        myOwnMutex->wait();
-        putc('C');
-        putc('\n');
-        myOwnMutex->signal();
-    }
-};
+#include "../../h/Testing/Testing_OS1/Periodic_Threads_CPP_API_Test.hpp"
 
 void userMain(void* arg) {
-    //Threads_C_API_test(); // niti C API, sinhrona promena konteksta (prosao)
-    //Threads_CPP_API_test(); // niti CPP API, sinhrona promena konteksta (prosao)
+    //ThreadsTestC::Threads_C_API_test(); // niti C API, sinhrona promena konteksta (prosao)
+    //ThreadsTestCPP::Threads_CPP_API_test(); // niti CPP API, sinhrona promena konteksta (prosao)
 
-    //producerConsumer_C_API(); // kompletan C API sa semaforima, sinhrona promena konteksta (prosao)
-    //producerConsumer_CPP_Sync_API(); // kompletan CPP API sa semaforima, sinhrona promena konteksta (prosao)
+    //ConsumerProducerSyncC::Consumer_Producer_Sync_C_API_Test(); // kompletan C API sa semaforima, sinhrona promena konteksta (ne radi sa C baferom, rado sa CPP baferom)
+    //ConsumerProducerSyncCPP::Consumer_Producer_Sync_CPP_API_Test(); // kompletan CPP API sa semaforima, sinhrona promena konteksta (prosao)
 
-    //testSleeping(); // uspavljivanje i budjenje niti, C API test (prosao)
-    //ConsumerProducerCPP::testConsumerProducer(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
+    //ThreadSleepTest::Thread_Sleep_C_API_Test(); // uspavljivanje i budjenje niti, C API test (prosao)
+    //ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
 
-    myOwnMutex = new Semaphore();
-    myOwnWaitForAll = new Semaphore(0);
-
-    A* a = new A(5);
-    B* b = new B(5);
-    C* c = new C(5);
-
-    PeriodicThread* threads[3];
-    threads[0] = a;
-    threads[1] = b;
-    threads[2] = c;
-
-    threads[0]->start();
-    threads[1]->start();
-    threads[2]->start();
-
-    int endThis = 0;
-    for (int i = 0; i < 3; i++) {
-        char chr = getc();
-        if (chr == 'k') {
-            threads[endThis++]->endPeriodicThread();
-        } else {
-            i--;
-        }
-    }
-
-    for (int i = 0; i < 3; i++) {
-        myOwnWaitForAll->wait();
-    }
-
-    delete myOwnMutex;
-    delete myOwnWaitForAll;
+    //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
