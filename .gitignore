@@ -5,3 +5,7 @@
 kernel
 kernel.asm
 kernel.ld
+
+build/
+
+.idea
