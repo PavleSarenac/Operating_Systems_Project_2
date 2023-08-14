@@ -1,5 +1,5 @@
-#ifndef BUFFER_HPP
-#define BUFFER_HPP
+#ifndef KERNELBUFFER_HPP
+#define KERNELBUFFER_HPP
 
 #include "../Semaphore/KernelSemaphore.hpp"
 #include "../SystemCalls/syscall_cpp.hpp"

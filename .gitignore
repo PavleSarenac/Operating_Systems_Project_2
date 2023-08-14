@@ -1,3 +1,7 @@
 .d
 .lst
 .o
+
+kernel
+kernel.asm
+kernel.ld

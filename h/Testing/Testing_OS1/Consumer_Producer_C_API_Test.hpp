@@ -3,14 +3,13 @@
 
 #include "../../Code/SystemCalls/syscall_c.h"
 #include "Buffer.hpp"
-#include "Buffer_CPP_API.hpp"
 
 namespace ConsumerProducerSyncC {
     sem_t waitForAll;
 
     struct thread_data {
         int id;
-        BufferTestCPP::BufferCPP *buffer;
+        BufferTestC::Buffer *buffer;
         sem_t wait;
     };
 
@@ -103,7 +102,7 @@ namespace ConsumerProducerSyncC {
             return;
         }
 
-        BufferTestCPP::BufferCPP *buffer = new BufferTestCPP::BufferCPP(n);
+        auto *buffer = new BufferTestC::Buffer(n);
 
         sem_open(&waitForAll, 0);
 
