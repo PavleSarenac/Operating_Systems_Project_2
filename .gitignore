@@ -6,6 +6,9 @@ kernel
 kernel.asm
 kernel.ld
 
+.gdbinit.tmpl-riscv
+LICENSE
+
 build/
 
 .idea

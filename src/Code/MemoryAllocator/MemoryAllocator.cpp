@@ -6,22 +6,28 @@ MemoryAllocator& MemoryAllocator::getInstance() {
 }
 
 MemoryAllocator::MemoryAllocator() {
-    // inicijalno postoji jedan slobodan segment koji je velicine celog heap-a (memorije koja je slobodna za alokaciju)
-    // sustina je da pocetna adresa bloka memorije koji se vraca korisniku mora da bude deljiva sa MEM_BLOCK_SIZE
-    // pre tog bloka mora postojati struktura za ulancavanje slobodnih segmenata (FreeSegment) i ona ce, iako je velicine 24 bajta
-    // a MEM_BLOCK_SIZE je 64 bajta, zauzeti ceo jedan blok velicine MEM_BLOCK_SIZE, posto se korisniku mora vratiti poravnata adresa,
-    // a to je onda adresa prvog narednog bloka velicine MEM_BLOCK_SIZE
-    size_t firstAlignedAddress =
-            reinterpret_cast<size_t>(HEAP_START_ADDR) +
-            ((reinterpret_cast<size_t>(HEAP_START_ADDR) % MEM_BLOCK_SIZE) ?
-             (MEM_BLOCK_SIZE - (reinterpret_cast<size_t>(HEAP_START_ADDR)) % MEM_BLOCK_SIZE): 0);
-    // koristio sam iznad reinterpret_cast jer sam konvertovao pokazivac u ceo broj, a ispod jer sam konvertovao ceo broj u pokazivac
-    freeListHead = reinterpret_cast<FreeSegment*>(firstAlignedAddress);
-    freeListHead->next = nullptr;
-    freeListHead->prev = nullptr;
-    // na pocetku taj jedan veliki slobodan segment ima freeListHead->size blokova velicine MEM_BLOCK_SIZE
-    totalNumberOfBlocks = (reinterpret_cast<size_t>(HEAP_END_ADDR) - 1 - firstAlignedAddress) / MEM_BLOCK_SIZE;
-    freeListHead->size = totalNumberOfBlocks;
+    firstAlignedAddress = calculateFirstAlignedAddress();
+    totalNumberOfBlocks = calculateTotalNumberOfMemoryBlocks(this);
+    initializeFreeSegmentsList(this);
+}
+
+size_t MemoryAllocator::calculateFirstAlignedAddress() {
+    auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
+    bool isHeapStartAddressAligned = heapStartAddress % MEM_BLOCK_SIZE == 0;
+    size_t offsetForAlignment = isHeapStartAddressAligned ? 0 : (MEM_BLOCK_SIZE - heapStartAddress % MEM_BLOCK_SIZE);
+    return heapStartAddress + offsetForAlignment;
+}
+
+size_t MemoryAllocator::calculateTotalNumberOfMemoryBlocks(MemoryAllocator* memoryAllocator) {
+    size_t lastAvailableAddress = reinterpret_cast<size_t>(HEAP_END_ADDR) - 1;
+    return (lastAvailableAddress - memoryAllocator->firstAlignedAddress) / MEM_BLOCK_SIZE;
+}
+
+void MemoryAllocator::initializeFreeSegmentsList(MemoryAllocator* memoryAllocator) {
+    memoryAllocator->freeListHead = reinterpret_cast<FreeSegment*>(memoryAllocator->firstAlignedAddress);
+    memoryAllocator->freeListHead->size = memoryAllocator->totalNumberOfBlocks;
+    memoryAllocator->freeListHead->next = nullptr;
+    memoryAllocator->freeListHead->prev = nullptr;
 }
 
 void* MemoryAllocator::allocateSegment(size_t size) { // parametar size je broj blokova velicine MEM_BLOCK_SIZE koje je korisnik trazio
