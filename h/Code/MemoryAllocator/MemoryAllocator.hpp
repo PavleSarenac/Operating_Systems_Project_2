@@ -24,7 +24,7 @@ private:
     static void initializeFreeSegmentsList(MemoryAllocator* memoryAllocator);
 
     struct FreeSegment {
-        size_t size;
+        size_t numberOfBlocks;
         FreeSegment* next;
         FreeSegment* prev;
     };
