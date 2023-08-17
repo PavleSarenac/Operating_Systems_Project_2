@@ -11,6 +11,24 @@ MemoryAllocator::MemoryAllocator() {
     initializeFreeSegmentsList(this);
 }
 
+void* MemoryAllocator::allocateSegment(size_t numberOfRequestedBlocks) {
+    if (numberOfRequestedBlocks >= totalNumberOfBlocks) return nullptr;
+    for (FreeSegment* freeSegment = freeListHead; freeSegment; freeSegment = freeSegment->next) {
+        bool isFreeSegmentEnough = freeSegment->numberOfBlocks >= numberOfRequestedBlocks;
+        bool isRemainingFragmentUsable = freeSegment->numberOfBlocks - numberOfRequestedBlocks >= 2;
+        if (isFreeSegmentEnough) {
+            char* allocatedSegment = reinterpret_cast<char*>(freeSegment) + MEM_BLOCK_SIZE;
+            if (isRemainingFragmentUsable) {
+                addRemainingFragmentToFreeSegmentsList(freeSegment, numberOfRequestedBlocks);
+            } else {
+                removeFromFreeSegmentsList(freeSegment, numberOfRequestedBlocks);
+            }
+            return allocatedSegment;
+        }
+    }
+    return nullptr;
+}
+
 size_t MemoryAllocator::calculateFirstAlignedAddress() {
     auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
     bool isHeapStartAddressAligned = heapStartAddress % MEM_BLOCK_SIZE == 0;
@@ -25,33 +43,27 @@ size_t MemoryAllocator::calculateTotalNumberOfMemoryBlocks(MemoryAllocator* memo
 
 void MemoryAllocator::initializeFreeSegmentsList(MemoryAllocator* memoryAllocator) {
     memoryAllocator->freeListHead = reinterpret_cast<FreeSegment*>(memoryAllocator->firstAlignedAddress);
-    memoryAllocator->freeListHead->numberOfBlocks = memoryAllocator->totalNumberOfBlocks;
+    memoryAllocator->freeListHead->numberOfBlocks = memoryAllocator->totalNumberOfBlocks - 1;
     memoryAllocator->freeListHead->next = nullptr;
     memoryAllocator->freeListHead->prev = nullptr;
 }
 
-void* MemoryAllocator::allocateSegment(size_t size) {
-    if (size >= totalNumberOfBlocks) return nullptr;
-    for (FreeSegment* freeSegment = freeListHead; freeSegment; freeSegment = freeSegment->next) {
-        if ((freeSegment->numberOfBlocks - 1) - size <= 1) {
-            if (freeSegment->prev) freeSegment->prev->next = freeSegment->next;
-            else freeListHead = freeSegment->next;
-            if (freeSegment->next) freeSegment->next->prev = freeSegment->prev;
-            freeSegment->numberOfBlocks = size + 1;
-            return reinterpret_cast<char*>(freeSegment) + MEM_BLOCK_SIZE;
-        } else if (freeSegment->numberOfBlocks > size && (freeSegment->numberOfBlocks - 1) - size >= 2) {
-            auto newFreeFragment = (FreeSegment*)(reinterpret_cast<char*>(freeSegment) + (size + 1) * MEM_BLOCK_SIZE);
-            if (freeSegment->prev) freeSegment->prev->next = newFreeFragment;
-            else freeListHead = newFreeFragment;
-            if (freeSegment->next) freeSegment->next->prev = newFreeFragment;
-            newFreeFragment->prev = freeSegment->prev;
-            newFreeFragment->next = freeSegment->next;
-            newFreeFragment->numberOfBlocks = freeSegment->numberOfBlocks - (size + 1);
-            freeSegment->numberOfBlocks = size + 1;
-            return reinterpret_cast<char*>(freeSegment) + MEM_BLOCK_SIZE;
-        }
-    }
-    return nullptr;
+void MemoryAllocator::removeFromFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks) {
+    if (freeSegment->prev) freeSegment->prev->next = freeSegment->next;
+    else freeListHead = freeSegment->next;
+    if (freeSegment->next) freeSegment->next->prev = freeSegment->prev;
+    freeSegment->numberOfBlocks = numberOfRequestedBlocks + 1;
+}
+
+void MemoryAllocator::addRemainingFragmentToFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks) {
+    auto remainingFragment = (FreeSegment*)(reinterpret_cast<char*>(freeSegment) + (numberOfRequestedBlocks + 1) * MEM_BLOCK_SIZE);
+    if (freeSegment->prev) freeSegment->prev->next = remainingFragment;
+    else freeListHead = remainingFragment;
+    if (freeSegment->next) freeSegment->next->prev = remainingFragment;
+    remainingFragment->prev = freeSegment->prev;
+    remainingFragment->next = freeSegment->next;
+    remainingFragment->numberOfBlocks = freeSegment->numberOfBlocks - (numberOfRequestedBlocks + 1) - 1;
+    freeSegment->numberOfBlocks = numberOfRequestedBlocks + 1;
 }
 
 // parametar ptr je pokazivac na memoriju koju korisnik zeli da oslobodi; static_cast<char*>(ptr) - MEM_BLOCK_SIZE je adresa pocetka
@@ -72,13 +84,13 @@ int MemoryAllocator::deallocateSegment(void *ptr) {
         for (freeSegment = freeListHead; freeSegment->next && static_cast<FreeSegment*>(ptr) > freeSegment->next; freeSegment = freeSegment->next);
     }
     // pokusaj spajanja novog slobodnog segmenta (ptr) sa prethodnim slobodnim segmentom (freeSegment)
-    if (freeSegment && reinterpret_cast<char*>(freeSegment) + freeSegment->numberOfBlocks * MEM_BLOCK_SIZE == static_cast<char*>(ptr)) {
+    if (freeSegment && reinterpret_cast<char*>(freeSegment) + (freeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == static_cast<char*>(ptr)) {
         // spajanje novog slobodnog segmenta (ptr) sa prethodnim slobodnim segmentom (freeSegment)
-        freeSegment->numberOfBlocks += (static_cast<FreeSegment*>(ptr))->numberOfBlocks;
+        freeSegment->numberOfBlocks += (static_cast<FreeSegment*>(ptr))->numberOfBlocks + 1;
         // pokusaj spajanja slobodnog segmenta (freeSegment) sa narednim slobodnim segmentom (freeSegment->next)
-        if (freeSegment->next && reinterpret_cast<char*>(freeSegment) + freeSegment->numberOfBlocks * MEM_BLOCK_SIZE == reinterpret_cast<char*>(freeSegment->next)) {
+        if (freeSegment->next && reinterpret_cast<char*>(freeSegment) + (freeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(freeSegment->next)) {
             // spajanje slobodnog segmenta (freeSegment) sa narednim slobodnim segmentom (freeSegment->next)
-            freeSegment->numberOfBlocks += freeSegment->next->numberOfBlocks;
+            freeSegment->numberOfBlocks += freeSegment->next->numberOfBlocks + 1;
             // uklanjanje segmenta freeSegment->next iz liste slobodnih segmenata
             freeSegment->next = freeSegment->next->next;
             if (freeSegment->next) freeSegment->next->prev = freeSegment;
@@ -88,10 +100,10 @@ int MemoryAllocator::deallocateSegment(void *ptr) {
         // pokusaj spajanja novog slobodnog segmenta (ptr) sa sledecim slobodnim segmentom (nextFreeSegment)
         FreeSegment* nextFreeSegment = freeSegment ? freeSegment->next : freeListHead;
         if (nextFreeSegment &&
-        static_cast<char*>(ptr) + (static_cast<FreeSegment*>(ptr))->numberOfBlocks * MEM_BLOCK_SIZE == reinterpret_cast<char*>(nextFreeSegment)) {
+        static_cast<char*>(ptr) + ((static_cast<FreeSegment*>(ptr))->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(nextFreeSegment)) {
             // spajanje novog slobodnog segmenta (ptr) sa sledecim slobodnim segmentom (nextFreeSegment) - izbacuje se nextFreeSegment iz liste
             auto newFreeSegment = static_cast<FreeSegment*>(ptr);
-            newFreeSegment->numberOfBlocks += nextFreeSegment->numberOfBlocks;
+            newFreeSegment->numberOfBlocks += nextFreeSegment->numberOfBlocks + 1;
             newFreeSegment->prev = nextFreeSegment->prev;
             newFreeSegment->next = nextFreeSegment->next;
             if (nextFreeSegment->next) nextFreeSegment->next->prev = newFreeSegment;

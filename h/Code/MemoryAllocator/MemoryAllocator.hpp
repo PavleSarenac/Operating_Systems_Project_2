@@ -11,10 +11,20 @@ public:
 
     void operator=(const MemoryAllocator&) = delete;
 
-    void* allocateSegment(size_t size);
+    void* allocateSegment(size_t numberOfRequestedBlocks);
 
     int deallocateSegment(void* ptr);
 private:
+    typedef struct FreeSegment {
+        size_t numberOfBlocks;
+        FreeSegment* next;
+        FreeSegment* prev;
+    } FreeSegment;
+
+    FreeSegment* freeListHead;
+    size_t firstAlignedAddress;
+    size_t totalNumberOfBlocks;
+
     MemoryAllocator();
 
     static size_t calculateFirstAlignedAddress();
@@ -23,14 +33,9 @@ private:
 
     static void initializeFreeSegmentsList(MemoryAllocator* memoryAllocator);
 
-    struct FreeSegment {
-        size_t numberOfBlocks;
-        FreeSegment* next;
-        FreeSegment* prev;
-    };
-    FreeSegment* freeListHead;
-    size_t firstAlignedAddress;
-    size_t totalNumberOfBlocks;
+    void removeFromFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);
+
+    void addRemainingFragmentToFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);
 };
 
 #endif
