@@ -29,6 +29,22 @@ void* MemoryAllocator::allocateSegment(size_t numberOfRequestedBlocks) {
     return nullptr;
 }
 
+int MemoryAllocator::deallocateSegment(void* memorySegmentForDealloaction) {
+    if (isInvalidMemorySegment(memorySegmentForDealloaction)) {
+        return -1;
+    }
+    auto newFreeSegment = reinterpret_cast<FreeSegment*>(static_cast<char*>(memorySegmentForDealloaction) - MEM_BLOCK_SIZE);
+    FreeSegment* previousFreeSegment = findPreviousFreeSegment(static_cast<FreeSegment*>(memorySegmentForDealloaction));
+    FreeSegment* nextFreeSegment = previousFreeSegment ? previousFreeSegment->next : freeListHead;
+    if (isPreviousFreeSegmentMergeable(previousFreeSegment, newFreeSegment)) {
+        return mergeWithPreviousFreeSegment(newFreeSegment, previousFreeSegment);
+    }
+    if (isNextFreeSegmentMergeable(nextFreeSegment, newFreeSegment)) {
+        return mergeWithNextFreeSegment(newFreeSegment, nextFreeSegment);
+    }
+    return insertAfterPreviousFreeSegment(newFreeSegment, previousFreeSegment);
+}
+
 size_t MemoryAllocator::calculateFirstAlignedAddress() {
     auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
     bool isHeapStartAddressAligned = heapStartAddress % MEM_BLOCK_SIZE == 0;
@@ -66,61 +82,63 @@ void MemoryAllocator::addRemainingFragmentToFreeSegmentsList(FreeSegment* freeSe
     freeSegment->numberOfBlocks = numberOfRequestedBlocks + 1;
 }
 
-// parametar ptr je pokazivac na memoriju koju korisnik zeli da oslobodi; static_cast<char*>(ptr) - MEM_BLOCK_SIZE je adresa pocetka
-// strukture za ulancavanje od segmenta memorije koju korisnik zeli da oslobodi
-int MemoryAllocator::deallocateSegment(void *ptr) {
-    if (!ptr || !(
-        reinterpret_cast<size_t>(HEAP_START_ADDR) <= reinterpret_cast<size_t>(ptr) &&
-        reinterpret_cast<size_t>(HEAP_END_ADDR) - 1 >= reinterpret_cast<size_t>(ptr))) return -1;
-    // postavljam ptr da pokazuje na pocetak strukture za ulancavanje segmenta memorije koji treba osloboditi
-    ptr = static_cast<char*>(ptr) - MEM_BLOCK_SIZE;
-    // nalazenje mesta gde treba umetnuti novi slobodan segment (to je segment na koji pokazuje pokazivac ptr)
-    FreeSegment* freeSegment;
-    if (!freeListHead || static_cast<FreeSegment*>(ptr) < freeListHead) {
-        // novi slobodan segment treba umetnuti na pocetak liste slobodnih segmenata
-        freeSegment = nullptr;
+bool MemoryAllocator::isInvalidMemorySegment(void* memorySegmentForDealloaction) {
+    bool isMemorySegmentOutOfRange =
+            (reinterpret_cast<size_t>(memorySegmentForDealloaction) <= reinterpret_cast<size_t>(HEAP_START_ADDR))
+            ||
+            (reinterpret_cast<size_t>(memorySegmentForDealloaction) > reinterpret_cast<size_t>(HEAP_END_ADDR) - 1);
+    if (!memorySegmentForDealloaction || isMemorySegmentOutOfRange) return true;
+    else return false;
+}
+
+MemoryAllocator::FreeSegment* MemoryAllocator::findPreviousFreeSegment(FreeSegment* memorySegmentForDealloaction) {
+    FreeSegment* previousFreeSegment;
+    if (!freeListHead || memorySegmentForDealloaction < freeListHead) {
+        previousFreeSegment = nullptr;
     } else {
-        // nalazenje mesta (to ce biti odmah nakon freeSegment) gde treba umetnuti novi slobodan segment
-        for (freeSegment = freeListHead; freeSegment->next && static_cast<FreeSegment*>(ptr) > freeSegment->next; freeSegment = freeSegment->next);
+        for (previousFreeSegment = freeListHead; previousFreeSegment->next && memorySegmentForDealloaction > previousFreeSegment->next; previousFreeSegment = previousFreeSegment->next);
     }
-    // pokusaj spajanja novog slobodnog segmenta (ptr) sa prethodnim slobodnim segmentom (freeSegment)
-    if (freeSegment && reinterpret_cast<char*>(freeSegment) + (freeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == static_cast<char*>(ptr)) {
-        // spajanje novog slobodnog segmenta (ptr) sa prethodnim slobodnim segmentom (freeSegment)
-        freeSegment->numberOfBlocks += (static_cast<FreeSegment*>(ptr))->numberOfBlocks + 1;
-        // pokusaj spajanja slobodnog segmenta (freeSegment) sa narednim slobodnim segmentom (freeSegment->next)
-        if (freeSegment->next && reinterpret_cast<char*>(freeSegment) + (freeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(freeSegment->next)) {
-            // spajanje slobodnog segmenta (freeSegment) sa narednim slobodnim segmentom (freeSegment->next)
-            freeSegment->numberOfBlocks += freeSegment->next->numberOfBlocks + 1;
-            // uklanjanje segmenta freeSegment->next iz liste slobodnih segmenata
-            freeSegment->next = freeSegment->next->next;
-            if (freeSegment->next) freeSegment->next->prev = freeSegment;
-        }
-        return 0;
-    } else {
-        // pokusaj spajanja novog slobodnog segmenta (ptr) sa sledecim slobodnim segmentom (nextFreeSegment)
-        FreeSegment* nextFreeSegment = freeSegment ? freeSegment->next : freeListHead;
-        if (nextFreeSegment &&
-        static_cast<char*>(ptr) + ((static_cast<FreeSegment*>(ptr))->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(nextFreeSegment)) {
-            // spajanje novog slobodnog segmenta (ptr) sa sledecim slobodnim segmentom (nextFreeSegment) - izbacuje se nextFreeSegment iz liste
-            auto newFreeSegment = static_cast<FreeSegment*>(ptr);
-            newFreeSegment->numberOfBlocks += nextFreeSegment->numberOfBlocks + 1;
-            newFreeSegment->prev = nextFreeSegment->prev;
-            newFreeSegment->next = nextFreeSegment->next;
-            if (nextFreeSegment->next) nextFreeSegment->next->prev = newFreeSegment;
-            if (nextFreeSegment->prev) nextFreeSegment->prev->next = newFreeSegment;
-            else freeListHead = newFreeSegment;
-            return 0;
-        } else {
-            // ova grana se izvrsava ako nema potrebe za bilo kakvim spajanjem slobodnih segmenata - jednostavno se
-            // umece novi slobodni segment (ptr) nakon prethodnog slobodnog segmenta (freeSegment)
-            auto newFreeSegment = static_cast<FreeSegment*>(ptr);
-            newFreeSegment->prev = freeSegment;
-            if (freeSegment) newFreeSegment->next = freeSegment->next;
-            else newFreeSegment->next = freeListHead;
-            if (newFreeSegment->next) newFreeSegment->next->prev = newFreeSegment;
-            if (freeSegment) freeSegment->next = newFreeSegment;
-            else freeListHead = newFreeSegment;
-            return 0;
-        }
+    return previousFreeSegment;
+}
+
+bool MemoryAllocator::isPreviousFreeSegmentMergeable(FreeSegment* previousFreeSegment, FreeSegment* newFreeSegment) {
+    return previousFreeSegment
+        &&
+        reinterpret_cast<char*>(previousFreeSegment) + (previousFreeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(newFreeSegment);
+}
+
+bool MemoryAllocator::isNextFreeSegmentMergeable(FreeSegment* nextFreeSegment, FreeSegment* newFreeSegment) {
+    return nextFreeSegment
+        &&
+        reinterpret_cast<char*>(newFreeSegment) + (newFreeSegment->numberOfBlocks + 1) * MEM_BLOCK_SIZE == reinterpret_cast<char*>(nextFreeSegment);
+}
+
+int MemoryAllocator::mergeWithNextFreeSegment(FreeSegment* newFreeSegment, FreeSegment* nextFreeSegment) {
+    newFreeSegment->numberOfBlocks += nextFreeSegment->numberOfBlocks + 1;
+    newFreeSegment->next = nextFreeSegment->next;
+    newFreeSegment->prev = nextFreeSegment->prev;
+    if (nextFreeSegment->next) nextFreeSegment->next->prev = newFreeSegment;
+    if (nextFreeSegment->prev) nextFreeSegment->prev->next = newFreeSegment;
+    else freeListHead = newFreeSegment;
+    return 0;
+}
+
+int MemoryAllocator::mergeWithPreviousFreeSegment(FreeSegment* newFreeSegment, FreeSegment* previousFreeSegment) {
+    previousFreeSegment->numberOfBlocks += newFreeSegment->numberOfBlocks + 1;
+    if (isNextFreeSegmentMergeable(previousFreeSegment->next, previousFreeSegment)) {
+        previousFreeSegment->numberOfBlocks += previousFreeSegment->next->numberOfBlocks + 1;
+        previousFreeSegment->next = previousFreeSegment->next->next;
+        if (previousFreeSegment->next) previousFreeSegment->next->prev = previousFreeSegment;
     }
+    return 0;
+}
+
+int MemoryAllocator::insertAfterPreviousFreeSegment(FreeSegment* newFreeSegment, FreeSegment* previousFreeSegment) {
+    newFreeSegment->prev = previousFreeSegment;
+    if (previousFreeSegment) newFreeSegment->next = previousFreeSegment->next;
+    else newFreeSegment->next = freeListHead;
+    if (newFreeSegment->next) newFreeSegment->next->prev = newFreeSegment;
+    if (previousFreeSegment) previousFreeSegment->next = newFreeSegment;
+    else freeListHead = newFreeSegment;
+    return 0;
 }

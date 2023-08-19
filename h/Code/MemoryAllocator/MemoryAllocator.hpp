@@ -13,7 +13,7 @@ public:
 
     void* allocateSegment(size_t numberOfRequestedBlocks);
 
-    int deallocateSegment(void* ptr);
+    int deallocateSegment(void* memorySegmentForDealloaction);
 private:
     typedef struct FreeSegment {
         size_t numberOfBlocks;
@@ -36,6 +36,20 @@ private:
     void removeFromFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);
 
     void addRemainingFragmentToFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);
+
+    static bool isInvalidMemorySegment(void* memorySegmentForDealloaction);
+
+    FreeSegment* findPreviousFreeSegment(FreeSegment* memorySegmentForDealloaction);
+
+    static bool isPreviousFreeSegmentMergeable(FreeSegment* previousFreeSegment, FreeSegment* newFreeSegment);
+
+    static bool isNextFreeSegmentMergeable(FreeSegment* nextFreeSegment, FreeSegment* newFreeSegment);
+
+    int mergeWithNextFreeSegment(FreeSegment* newFreeSegment, FreeSegment* nextFreeSegment);
+
+    static int mergeWithPreviousFreeSegment(FreeSegment* newFreeSegment, FreeSegment* previousFreeSegment);
+
+    int insertAfterPreviousFreeSegment(FreeSegment* newFreeSegment, FreeSegment* previousFreeSegment);
 };
 
 #endif
