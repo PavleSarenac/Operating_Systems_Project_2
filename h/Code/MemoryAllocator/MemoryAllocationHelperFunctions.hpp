@@ -2,13 +2,14 @@
 #define MEMORYALLOCATIONHELPERFUNCTIONS_HPP
 
 #include "../../../lib/hw.h"
+#include "../../../h/Code/MemoryAllocator/slab.hpp"
 
 namespace MemoryAllocationHelperFunctions {
-    size_t getFirstAlignedAddress();
+    size_t getFirstAlignedAddressForBuddyAllocator();
 
     size_t getTotalNumberOfMemoryBlocks();
 
-    size_t getNumberOfMemoryBlocksForSlabAllocator();
+    size_t getTotalNumberOfMemoryBlocksForBuddyAllocator();
 }
 
 #endif

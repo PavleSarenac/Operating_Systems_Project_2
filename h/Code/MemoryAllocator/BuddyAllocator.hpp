@@ -13,14 +13,14 @@ public:
 
     void setup(void* firstAlignedAddress, int totalNumberOfMemoryBlocksForSlabAllocation);
 private:
-    void* firstAlignedAddress;
-    int totalNumberOfMemoryBlocksForSlabAllocation;
+    void* firstAlignedAddressForBuddyAllocation;
+    int totalNumberOfMemoryBlocksForBuddyAllocation;
 
     BuddyAllocator() {}
 
-    void setFirstAlignedAddress(void* firstAlignedAddress);
+    void setFirstAlignedAddressForBuddyAllocation(void* firstAlignedAddressForBuddyAllocation);
 
-    void setTotalNumberOfMemoryBlocksForSlabAllocation(int totalNumberOfMemoryBlocksForSlabAllocation);
+    void setTotalNumberOfMemoryBlocksForBuddyAllocation(int totalNumberOfMemoryBlocksForBuddyAllocation);
 };
 
 #endif

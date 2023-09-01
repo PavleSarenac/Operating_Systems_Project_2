@@ -4,6 +4,7 @@
 #include "../../../lib/hw.h"
 
 typedef struct kmem_cache_s kmem_cache_t;
+#define BLOCK_SIZE (4096)
 
 void kmem_init(void *space, int block_num);
 kmem_cache_t *kmem_cache_create(const char *name, size_t size,
