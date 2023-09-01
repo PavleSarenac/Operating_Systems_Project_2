@@ -1,7 +1,7 @@
 #ifndef CONSUMER_PRODUCER_C_API_TEST_HPP
 #define CONSUMER_PRODUCER_C_API_TEST_HPP
 
-#include "../../Code/SystemCalls/syscall_c.h"
+#include "../../Code/SystemCalls/syscall_c.hpp"
 #include "Buffer.hpp"
 
 namespace ConsumerProducerSyncC {

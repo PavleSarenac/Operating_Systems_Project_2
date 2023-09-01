@@ -1,5 +1,5 @@
-#ifndef SYSCALL_C_H
-#define SYSCALL_C_H
+#ifndef SYSCALL_C_HPP
+#define SYSCALL_C_HPP
 
 #include "../../../lib/hw.h"
 #include "ABI_Interface.h"
@@ -25,7 +25,6 @@ int sem_signal(sem_t id);
 
 int time_sleep(time_t time);
 
-const int EOF = -1;
 char getc();
 void putc(char c);
 

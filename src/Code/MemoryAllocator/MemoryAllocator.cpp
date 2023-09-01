@@ -1,14 +1,14 @@
 #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 
-MemoryAllocator& MemoryAllocator::getInstance() {
-    static MemoryAllocator memoryAllocator;
-    return memoryAllocator;
-}
-
 MemoryAllocator::MemoryAllocator() {
     firstAlignedAddress = calculateFirstAlignedAddress();
     totalNumberOfBlocks = calculateTotalNumberOfMemoryBlocks(this);
     initializeFreeSegmentsList(this);
+}
+
+MemoryAllocator& MemoryAllocator::getInstance() {
+    static MemoryAllocator memoryAllocator;
+    return memoryAllocator;
 }
 
 void* MemoryAllocator::allocateSegment(size_t numberOfRequestedBlocks) {

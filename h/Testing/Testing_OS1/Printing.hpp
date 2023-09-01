@@ -1,7 +1,7 @@
 #ifndef PRINTING_HPP
 #define PRINTING_HPP
 
-#include "../../Code/SystemCalls/syscall_c.h"
+#include "../../Code/SystemCalls/syscall_c.hpp"
 
 typedef unsigned long uint64;
 

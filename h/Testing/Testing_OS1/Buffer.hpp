@@ -1,7 +1,7 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
-#include "../../Code/SystemCalls/syscall_c.h"
+#include "../../Code/SystemCalls/syscall_c.hpp"
 #include "Printing.hpp"
 
 namespace BufferTestC {

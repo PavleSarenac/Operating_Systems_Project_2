@@ -1,4 +1,4 @@
-#include "../../../h/Code/SystemCalls/syscall_c.h"
+#include "../../../h/Code/SystemCalls/syscall_c.hpp"
 
 void* mem_alloc(size_t size) { // size je broj bajtova koje je korisnik trazio - to cu zaokruziti na ceo broj blokova tako da korisnik dobije tacno toliko ili cak i vise memorije
     uint64 sysCallCode = 0x01; // kod ovog sistemskog poziva

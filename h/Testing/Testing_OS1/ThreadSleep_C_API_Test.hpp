@@ -1,7 +1,7 @@
 #ifndef THREADSLEEP_C_API_TEST_HPP
 #define THREADSLEEP_C_API_TEST_HPP
 
-#include "../../Code/SystemCalls/syscall_c.h"
+#include "../../Code/SystemCalls/syscall_c.hpp"
 #include "Printing.hpp"
 
 namespace ThreadSleepTest {

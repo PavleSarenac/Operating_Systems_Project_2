@@ -1,6 +1,6 @@
 #include "../../../h/Code/Thread/TCB.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
-#include "../../../h/Code/SystemCalls/syscall_c.h"
+#include "../../../h/Code/SystemCalls/syscall_c.hpp"
 
 int TCB::staticThreadId = 0;
 
