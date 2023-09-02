@@ -24,6 +24,7 @@ void userMain(void* arg) {
     //ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
 
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
+    printInt(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocks());
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
