@@ -11,16 +11,16 @@ public:
 
     void operator=(const BuddyAllocator&) = delete;
 
-    void setup(void* firstAlignedAddress, int totalNumberOfMemoryBlocksForSlabAllocation);
+    void setup(void* firstAlignedAddress, int totalNumberOfMemoryBlocks);
 private:
-    void* firstAlignedAddressForBuddyAllocation;
-    int totalNumberOfMemoryBlocksForBuddyAllocation;
+    void* firstAlignedAddress;
+    int totalNumberOfMemoryBlocks;
 
     BuddyAllocator() {}
 
-    void setFirstAlignedAddressForBuddyAllocation(void* firstAlignedAddressForBuddyAllocation);
+    void setFirstAlignedAddress(void* firstAlignedAddress);
 
-    void setTotalNumberOfMemoryBlocksForBuddyAllocation(int totalNumberOfMemoryBlocksForBuddyAllocation);
+    void setTotalNumberOfMemoryBlocks(int totalNumberOfMemoryBlocks);
 };
 
 #endif

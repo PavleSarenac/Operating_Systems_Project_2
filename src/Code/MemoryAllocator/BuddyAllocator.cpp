@@ -5,15 +5,15 @@ BuddyAllocator& BuddyAllocator::getInstance() {
     return buddyAllocator;
 }
 
-void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfMemoryBlocksForSlabAllocation) {
-    setFirstAlignedAddressForBuddyAllocation(firstAlignedAddress);
-    setTotalNumberOfMemoryBlocksForBuddyAllocation(totalNumberOfMemoryBlocksForSlabAllocation);
+void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfMemoryBlocks) {
+    setFirstAlignedAddress(firstAlignedAddress);
+    setTotalNumberOfMemoryBlocks(totalNumberOfMemoryBlocks);
 }
 
-void BuddyAllocator::setFirstAlignedAddressForBuddyAllocation(void* firstAlignedAddressForBuddyAllocation) {
-    this->firstAlignedAddressForBuddyAllocation = firstAlignedAddressForBuddyAllocation;
+void BuddyAllocator::setFirstAlignedAddress(void* firstAlignedAddress) {
+    this->firstAlignedAddress = firstAlignedAddress;
 }
 
-void BuddyAllocator::setTotalNumberOfMemoryBlocksForBuddyAllocation(int totalNumberOfMemoryBlocksForBuddyAllocation) {
-    this->totalNumberOfMemoryBlocksForBuddyAllocation = totalNumberOfMemoryBlocksForBuddyAllocation;
+void BuddyAllocator::setTotalNumberOfMemoryBlocks(int totalNumberOfMemoryBlocks) {
+    this->totalNumberOfMemoryBlocks = totalNumberOfMemoryBlocks;
 }
