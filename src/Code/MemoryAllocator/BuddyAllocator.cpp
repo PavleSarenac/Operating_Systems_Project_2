@@ -16,7 +16,7 @@ void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfBlocks) {
     this->maxUsedNumberOfBlocksOfSameSize = 1 << this->maxUsedExponent;
     for (int i = maxUsedExponent, numberOfBlocks = 1; i >= 0; i--, numberOfBlocks <<= 1) {
         numberOfBlocksOfSameSize[i] = numberOfBlocks;
-        for (int j = 0; j < maxUsedNumberOfBlocksOfSameSize; j++) {
+        for (int j = 0; j < numberOfBlocks; j++) {
             isBlockFree[i][j] = false;
         }
     }
@@ -24,6 +24,7 @@ void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfBlocks) {
 }
 
 void* BuddyAllocator::allocate(int numberOfBytes) {
+    if (numberOfBytes == 0) return nullptr;
     int minNeededExponent = getExponentForNumberOfBytes(numberOfBytes);
     int currentExponent = minNeededExponent;
     int freeBlockIndex = -1;

@@ -12,6 +12,9 @@ public:
     static void assertSetup();
     static void assertGetBlockAddress();
     static void assertAllocate();
+private:
+    static size_t getNumberOfFreeBlocks();
+    static void initializeBuddyAllocator();
 };
 
 #endif

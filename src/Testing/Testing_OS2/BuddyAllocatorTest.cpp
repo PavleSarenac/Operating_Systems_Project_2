@@ -216,10 +216,6 @@ void BuddyAllocatorTest::assertSetup() {
     printString("Testing setup method.\n");
     bool testPassed = true;
 
-    BuddyAllocator::getInstance().setup(
-            reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
-            static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));
-
     int expectedMaxUsedExponent = 11;
     int actualMaxUsedExponent = BuddyAllocator::getInstance().maxUsedExponent;
     if (expectedMaxUsedExponent != actualMaxUsedExponent) {
@@ -238,6 +234,17 @@ void BuddyAllocatorTest::assertSetup() {
         printInt(expectedMaxUsedNumberOfBlocksOfSameSize);
         printString(", but actually got ");
         printInt(actualMaxUsedNumberOfBlocksOfSameSize);
+        printString(".\n\n");
+        testPassed = false;
+    }
+
+    size_t expectedNumberOfFreeBlocks = 1;
+    size_t actualNumberOfFreeBlocks = getNumberOfFreeBlocks();
+    if (expectedNumberOfFreeBlocks != actualNumberOfFreeBlocks) {
+        printString("Assert 3 has failed. Expected ");
+        printInt(expectedNumberOfFreeBlocks);
+        printString(", but actually got ");
+        printInt(actualNumberOfFreeBlocks);
         printString(".\n\n");
         testPassed = false;
     }
@@ -325,14 +332,77 @@ void BuddyAllocatorTest::assertAllocate() {
     printString("Testing allocate method.\n");
     bool testPassed = true;
 
-    int numberOfBytes1 = 0;
-    int expectedExponent1 = 0;
-    int actualExponent1 = BuddyAllocator::getExponentForNumberOfBytes(numberOfBytes1);
-    if (expectedExponent1 != actualExponent1) {
+    initializeBuddyAllocator();
+    size_t expectedBlockAddress1 = 0;
+    auto actualBlockAddress1 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(0));
+    if (expectedBlockAddress1 != actualBlockAddress1) {
         printString("Assert 1 has failed. Expected ");
-        printInt(expectedExponent1);
+        printInt(expectedBlockAddress1);
         printString(", but actually got ");
-        printInt(actualExponent1);
+        printInt(actualBlockAddress1);
+        printString(".\n\n");
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    size_t expectedBlockAddress2 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator();
+    auto actualBlockAddress2 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(1));
+    bool areFreedBlocksInCorrectPositions = true;
+    for (int i = 0; i < BuddyAllocator::getInstance().maxUsedExponent; i++) {
+        if (!BuddyAllocator::getInstance().isBlockFree[i][1]) {
+            areFreedBlocksInCorrectPositions = false;
+            break;
+        }
+    }
+    if (expectedBlockAddress2 != actualBlockAddress2 || !areFreedBlocksInCorrectPositions
+        || getNumberOfFreeBlocks() != 11 || BuddyAllocator::getInstance().isBlockFree[11][0]) {
+        printString("Assert 2 has failed. Expected ");
+        printInt(expectedBlockAddress2);
+        printString(", but actually got ");
+        printInt(actualBlockAddress2);
+        printString(".\n\n");
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    size_t expectedBlockAddress3 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
+            + 11 * BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE;
+    auto actualBlockAddress3 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(2048 * BLOCK_SIZE));
+    if (expectedBlockAddress3 != actualBlockAddress3 || getNumberOfFreeBlocks() != 0) {
+        printString("Assert 3 has failed. Expected ");
+        printInt(expectedBlockAddress3);
+        printString(", but actually got ");
+        printInt(actualBlockAddress3);
+        printString(".\n\n");
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    bool areAllBlockAddressesCorrect = true;
+    size_t expectedBlockAddress4 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator();
+    for (int i = 0; i < 2048; i++, expectedBlockAddress4 += BLOCK_SIZE) {
+        auto actualBlockAddress4 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(BLOCK_SIZE));
+        if (expectedBlockAddress4 != actualBlockAddress4) areFreedBlocksInCorrectPositions = false;
+    }
+    if (!areAllBlockAddressesCorrect || getNumberOfFreeBlocks() != 0) {
+        printString("Assert 4 has failed");
+        printString(".\n\n");
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    size_t expectedBlockAddress51 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
+            + 10 * BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE;
+    auto actualBlockAddress51 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(1024 * BLOCK_SIZE));
+    size_t expectedBlockAddress52 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
+            + 1024 * BLOCK_SIZE;
+    auto actualBlockAddress52 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(BLOCK_SIZE));
+    if (expectedBlockAddress51 != actualBlockAddress51 || expectedBlockAddress52 != actualBlockAddress52
+        || getNumberOfFreeBlocks() != 10) {
+        printString("Assert 5 has failed. Expected ");
+        printInt(expectedBlockAddress52);
+        printString(", but actually got ");
+        printInt(actualBlockAddress52);
         printString(".\n\n");
         testPassed = false;
     }
@@ -342,4 +412,20 @@ void BuddyAllocatorTest::assertAllocate() {
     } else {
         printString("*****There are failed assertions for allocate method*****\n\n");
     }
+}
+
+size_t BuddyAllocatorTest::getNumberOfFreeBlocks() {
+    size_t numberOfFreeBlocks = 0;
+    for (int i = 0; i <= BuddyAllocator::getInstance().maxUsedExponent; i++) {
+        for (int j = 0; j < BuddyAllocator::getInstance().numberOfBlocksOfSameSize[i]; j++) {
+            numberOfFreeBlocks += BuddyAllocator::getInstance().isBlockFree[i][j] ? 1 : 0;
+        }
+    }
+    return numberOfFreeBlocks;
+}
+
+void BuddyAllocatorTest::initializeBuddyAllocator() {
+    BuddyAllocator::getInstance().setup(
+            reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
+            static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));
 }
