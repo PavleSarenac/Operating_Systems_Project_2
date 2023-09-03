@@ -257,6 +257,24 @@ bool BuddyAllocatorTest::assertSetup() {
         testPassed = false;
     }
 
+    bool isNumberOfBlocksOfSameSizeArrayOkay = true;
+    size_t expectedNumberOfBlocksOfSameSize = 2048, actualNumberOfBlocksOfSameSize;
+    for (int i = 0; i <= BuddyAllocator::getInstance().maxUsedExponent; i++, expectedNumberOfBlocksOfSameSize >>= 1) {
+        actualNumberOfBlocksOfSameSize = BuddyAllocator::getInstance().numberOfBlocksOfSameSize[i];
+        if (expectedMaxUsedNumberOfBlocksOfSameSize != actualMaxUsedNumberOfBlocksOfSameSize) {
+            isNumberOfBlocksOfSameSizeArrayOkay = false;
+            break;
+        }
+    }
+    if (!isNumberOfBlocksOfSameSizeArrayOkay) {
+        printString("Assert 4 has failed. Expected ");
+        printInt(expectedNumberOfBlocksOfSameSize);
+        printString(", but actually got ");
+        printInt(actualNumberOfBlocksOfSameSize);
+        printString(".\n\n");
+        testPassed = false;
+    }
+
     if (testPassed) {
         printString("All assertions for setup method have passed.\n\n");
         return true;
@@ -329,7 +347,6 @@ bool BuddyAllocatorTest::assertGetBlockAddress() {
         printString(".\n\n");
         testPassed = false;
     }
-
 
     if (testPassed) {
         printString("All assertions for getBlockAddress method have passed.\n\n");

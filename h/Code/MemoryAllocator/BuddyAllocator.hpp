@@ -14,6 +14,7 @@ public:
     void operator=(const BuddyAllocator&) = delete;
     void setup(void* firstAlignedAddress, int totalNumberOfBlocks);
     void* allocate(int numberOfBytes);
+    void deallocate(void* memoryForDeallocation, size_t numberOfBytes);
 private:
     int numberOfBlocksOfSameSize[MAX_EXPONENT + 1];
     bool isBlockFree[MAX_EXPONENT + 1][MAX_NUMBER_OF_BLOCKS_OF_SAME_SIZE];

@@ -42,6 +42,10 @@ void* BuddyAllocator::allocate(int numberOfBytes) {
     return getBlockAddress(minNeededExponent, freeBlockIndex);
 }
 
+void BuddyAllocator::deallocate(void* memoryForDeallocation, size_t numberOfBytes) {
+
+}
+
 int BuddyAllocator::getExponentForNumberOfBlocks(int numberOfBlocks) {
     if (numberOfBlocks == 0) return 0;
     int exponent = 0, numberOfAllocatedBlocks = 1;
@@ -58,6 +62,7 @@ int BuddyAllocator::getExponentForNumberOfBytes(int numberOfBytes) {
 }
 
 int BuddyAllocator::getFreeBlockIndex(int exponent) const {
+    if (exponent < 0 || exponent > maxUsedExponent) return - 1;
     for (int i = 0; i < numberOfBlocksOfSameSize[exponent]; i++)
         if (isBlockFree[exponent][i]) return i;
     return -1;
