@@ -9,10 +9,11 @@ BuddyAllocator& BuddyAllocator::getInstance() {
 }
 
 void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfBlocks) {
+    if (totalNumberOfBlocks > static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()))
+        return;
     this->firstAlignedAddress = firstAlignedAddress;
     this->maxUsedExponent = getExponentForNumberOfBlocks(totalNumberOfBlocks);
     this->maxUsedNumberOfBlocksOfSameSize = 1 << this->maxUsedExponent;
-    if (maxUsedExponent > MAX_EXPONENT) return;
     for (int i = maxUsedExponent, numberOfBlocks = 1; i >= 0; i--, numberOfBlocks <<= 1) {
         numberOfBlocksOfSameSize[i] = numberOfBlocks;
         for (int j = 0; j < maxUsedNumberOfBlocksOfSameSize; j++) {
@@ -41,10 +42,11 @@ void* BuddyAllocator::allocate(int numberOfBytes) {
 }
 
 int BuddyAllocator::getExponentForNumberOfBlocks(int numberOfBlocks) {
-    int exponent = 0;
-    for (int i = 0; numberOfBlocks; i++) {
-        if (i > 0) exponent++;
-        numberOfBlocks >>= 1;
+    if (numberOfBlocks == 0) return 0;
+    int exponent = 0, numberOfAllocatedBlocks = 1;
+    while (numberOfAllocatedBlocks < numberOfBlocks) {
+        numberOfAllocatedBlocks <<= 1;
+        exponent++;
     }
     return exponent;
 }

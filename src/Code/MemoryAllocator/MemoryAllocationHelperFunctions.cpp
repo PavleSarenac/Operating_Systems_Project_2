@@ -16,9 +16,9 @@ size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocks() {
 size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator() {
     size_t initialTotalNumberOfMemoryBlocksForBuddyAlocator = (getTotalNumberOfMemoryBlocks() * 125) / 1000;
     size_t finalTotalNumberOfMemoryBlocksForBuddyAllocator = 1;
-    for (int i = 0; initialTotalNumberOfMemoryBlocksForBuddyAlocator; i++) {
-        if (i > 0) finalTotalNumberOfMemoryBlocksForBuddyAllocator <<= 1;
-        initialTotalNumberOfMemoryBlocksForBuddyAlocator >>= 1;
+    while (finalTotalNumberOfMemoryBlocksForBuddyAllocator <= initialTotalNumberOfMemoryBlocksForBuddyAlocator) {
+        finalTotalNumberOfMemoryBlocksForBuddyAllocator <<= 1;
     }
+    finalTotalNumberOfMemoryBlocksForBuddyAllocator >>= 1;
     return finalTotalNumberOfMemoryBlocksForBuddyAllocator;
 }

@@ -2,6 +2,7 @@
 #define BUDDYALLOCATOR_HPP
 
 #include "../../../lib/hw.h"
+#include "../../Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
 
 class BuddyAllocator {
 public:
@@ -24,6 +25,8 @@ private:
     static int getExponentForNumberOfBytes(int numberOfBytes);
     int getFreeBlockIndex(int exponent) const;
     void* getBlockAddress(int exponent, int blockIndex) const;
+
+    friend class BuddyAllocatorTest;
 };
 
 #endif

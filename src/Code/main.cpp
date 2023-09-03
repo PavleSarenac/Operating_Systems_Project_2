@@ -13,7 +13,11 @@
 #include "../../h/Testing/Testing_OS1/Consumer_Producer_CPP_API_Test.hpp"
 #include "../../h/Testing/Testing_OS1/Periodic_Threads_CPP_API_Test.hpp"
 
+#include "../../h/Testing/Testing_OS2/BuddyAllocatorTest.hpp"
+
 void userMain(void* arg) {
+    // OS1 projekat testovi
+
     //ThreadsTestC::Threads_C_API_test(); // niti C API, sinhrona promena konteksta (prosao)
     //ThreadsTestCPP::Threads_CPP_API_test(); // niti CPP API, sinhrona promena konteksta (prosao)
 
@@ -24,6 +28,9 @@ void userMain(void* arg) {
     //ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
 
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
+
+    // OS2 projekat testovi
+    BuddyAllocatorTest::runTests();
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
