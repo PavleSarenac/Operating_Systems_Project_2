@@ -7,11 +7,11 @@
 class BuddyAllocatorTest {
 public:
     static void runTests();
-    static void assertGetExponentForNumberOfBlocks();
-    static void assertGetExponentForNumberOfBytes();
-    static void assertSetup();
-    static void assertGetBlockAddress();
-    static void assertAllocate();
+    static bool assertGetExponentForNumberOfBlocks();
+    static bool assertGetExponentForNumberOfBytes();
+    static bool assertSetup();
+    static bool assertGetBlockAddress();
+    static bool assertAllocate();
 private:
     static size_t getNumberOfFreeBlocks();
     static void initializeBuddyAllocator();

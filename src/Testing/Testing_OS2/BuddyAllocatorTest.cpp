@@ -3,14 +3,18 @@
 
 void BuddyAllocatorTest::runTests() {
     printString("Running tests for BuddyAllocator.\n\n");
-    assertGetExponentForNumberOfBlocks();
-    assertGetExponentForNumberOfBytes();
-    assertSetup();
-    assertGetBlockAddress();
-    assertAllocate();
+    if (!assertGetExponentForNumberOfBlocks() ||
+        !assertGetExponentForNumberOfBytes() ||
+        !assertSetup() ||
+        !assertGetBlockAddress() ||
+        !assertAllocate()) {
+        printString("*****Some tests for BuddyAllocator have failed*****\n\n");
+    } else {
+        printString("All tests for BuddyAllocator have passed.\n\n");
+    }
 }
 
-void BuddyAllocatorTest::assertGetExponentForNumberOfBlocks() {
+bool BuddyAllocatorTest::assertGetExponentForNumberOfBlocks() {
     printString("Testing getExponentForNumberOfBlocks method.\n");
     bool testPassed = true;
 
@@ -112,12 +116,14 @@ void BuddyAllocatorTest::assertGetExponentForNumberOfBlocks() {
 
     if (testPassed) {
         printString("All assertions for getExponentForNumberOfBlocks method have passed.\n\n");
+        return true;
     } else {
         printString("*****There are failed assertions for getExponentForNumberOfBlocks method*****\n\n");
+        return false;
     }
 }
 
-void BuddyAllocatorTest::assertGetExponentForNumberOfBytes() {
+bool BuddyAllocatorTest::assertGetExponentForNumberOfBytes() {
     printString("Testing getExponentForNumberOfBytes method.\n");
     bool testPassed = true;
 
@@ -207,12 +213,14 @@ void BuddyAllocatorTest::assertGetExponentForNumberOfBytes() {
 
     if (testPassed) {
         printString("All assertions for getExponentForNumberOfBytes method have passed.\n\n");
+        return true;
     } else {
         printString("*****There are failed assertions for getExponentForNumberOfBytes method*****\n\n");
+        return false;
     }
 }
 
-void BuddyAllocatorTest::assertSetup() {
+bool BuddyAllocatorTest::assertSetup() {
     printString("Testing setup method.\n");
     bool testPassed = true;
 
@@ -251,12 +259,14 @@ void BuddyAllocatorTest::assertSetup() {
 
     if (testPassed) {
         printString("All assertions for setup method have passed.\n\n");
+        return true;
     } else {
         printString("*****There are failed assertions for setup method*****\n\n");
+        return false;
     }
 }
 
-void BuddyAllocatorTest::assertGetBlockAddress() {
+bool BuddyAllocatorTest::assertGetBlockAddress() {
     printString("Testing getBlockAddress method.\n");
     bool testPassed = true;
 
@@ -323,12 +333,14 @@ void BuddyAllocatorTest::assertGetBlockAddress() {
 
     if (testPassed) {
         printString("All assertions for getBlockAddress method have passed.\n\n");
+        return true;
     } else {
         printString("*****There are failed assertions for getBlockAddress method*****\n\n");
+        return false;
     }
 }
 
-void BuddyAllocatorTest::assertAllocate() {
+bool BuddyAllocatorTest::assertAllocate() {
     printString("Testing allocate method.\n");
     bool testPassed = true;
 
@@ -409,8 +421,10 @@ void BuddyAllocatorTest::assertAllocate() {
 
     if (testPassed) {
         printString("All assertions for allocate method have passed.\n\n");
+        return true;
     } else {
         printString("*****There are failed assertions for allocate method*****\n\n");
+        return false;
     }
 }
 
