@@ -411,7 +411,10 @@ bool BuddyAllocatorTest::assertAllocate() {
     size_t expectedBlockAddress4 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator();
     for (int i = 0; i < 2048; i++, expectedBlockAddress4 += BLOCK_SIZE) {
         auto actualBlockAddress4 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(BLOCK_SIZE));
-        if (expectedBlockAddress4 != actualBlockAddress4) areFreedBlocksInCorrectPositions = false;
+        if (expectedBlockAddress4 != actualBlockAddress4) {
+            areFreedBlocksInCorrectPositions = false;
+            break;
+        }
     }
     if (!areAllBlockAddressesCorrect || getNumberOfFreeBlocks() != 0) {
         printString("Assert 4 has failed");

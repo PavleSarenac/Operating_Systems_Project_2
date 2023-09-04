@@ -14,7 +14,7 @@ public:
     void operator=(const BuddyAllocator&) = delete;
     void setup(void* firstAlignedAddress, int totalNumberOfBlocks);
     void* allocate(int numberOfBytes);
-    void deallocate(void* memoryForDeallocation, size_t numberOfBytes);
+    void deallocate(void* blockForDeallocation, size_t numberOfBytes);
 private:
     int numberOfBlocksOfSameSize[MAX_EXPONENT + 1];
     bool isBlockFree[MAX_EXPONENT + 1][MAX_NUMBER_OF_BLOCKS_OF_SAME_SIZE];
@@ -26,6 +26,7 @@ private:
     static int getExponentForNumberOfBytes(int numberOfBytes);
     int getFreeBlockIndex(int exponent) const;
     void* getBlockAddress(int exponent, int blockIndex) const;
+    int getBlockIndexFromAddress(void* blockAddress, int exponent) const;
 
     friend class BuddyAllocatorTest;
 };

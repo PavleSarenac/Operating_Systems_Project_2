@@ -1,5 +1,4 @@
 #include "../../../h/Code/MemoryAllocator/BuddyAllocator.hpp"
-#include "../../../h/Code/MemoryAllocator/slab.hpp"
 
 BuddyAllocator::BuddyAllocator() {}
 
@@ -42,8 +41,20 @@ void* BuddyAllocator::allocate(int numberOfBytes) {
     return getBlockAddress(minNeededExponent, freeBlockIndex);
 }
 
-void BuddyAllocator::deallocate(void* memoryForDeallocation, size_t numberOfBytes) {
-
+void BuddyAllocator::deallocate(void* blockForDeallocation, size_t numberOfBytes) {
+    int exponent = getExponentForNumberOfBytes(numberOfBytes);
+    int blockIndex = getBlockIndexFromAddress(blockForDeallocation, exponent);
+    while (exponent < maxUsedExponent) {
+        int buddyIndex = blockIndex % 2 ? blockIndex - 1 : blockIndex + 1;
+        if (!isBlockFree[exponent][buddyIndex]) {
+            isBlockFree[exponent][blockIndex] = true;
+            return;
+        }
+        isBlockFree[exponent][buddyIndex] = false;
+        blockIndex >>= 1;
+        exponent++;
+    }
+    isBlockFree[exponent][blockIndex] = true;
 }
 
 int BuddyAllocator::getExponentForNumberOfBlocks(int numberOfBlocks) {
@@ -72,4 +83,8 @@ void* BuddyAllocator::getBlockAddress(int exponent, int blockIndex) const {
      return static_cast<char*>(firstAlignedAddress)
             + exponent * (maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE)
             + blockIndex * BLOCK_SIZE;
+}
+
+int BuddyAllocator::getBlockIndexFromAddress(void* blockAddress, int exponent) const {
+    return static_cast<int>((reinterpret_cast<size_t>(blockAddress) - reinterpret_cast<size_t>(getBlockAddress(exponent, 0))) / BLOCK_SIZE);
 }
