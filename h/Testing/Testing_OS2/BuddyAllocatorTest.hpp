@@ -12,6 +12,7 @@ public:
     static bool assertSetup();
     static bool assertGetBlockAddress();
     static bool assertAllocate();
+    static bool assertDeallocate();
 private:
     static size_t getNumberOfFreeBlocks();
     static void initializeBuddyAllocator();

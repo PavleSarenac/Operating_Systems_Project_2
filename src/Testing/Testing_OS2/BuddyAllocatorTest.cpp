@@ -7,7 +7,8 @@ void BuddyAllocatorTest::runTests() {
         !assertGetExponentForNumberOfBytes() ||
         !assertSetup() ||
         !assertGetBlockAddress() ||
-        !assertAllocate()) {
+        !assertAllocate() ||
+        !assertDeallocate()) {
         printString("*****Some tests for BuddyAllocator have failed*****\n\n");
     } else {
         printString("All tests for BuddyAllocator have passed.\n\n");
@@ -323,8 +324,7 @@ bool BuddyAllocatorTest::assertGetBlockAddress() {
         testPassed = false;
     }
 
-    size_t expectedBlockAddress4 = firstAlignedAddress
-            + BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE;
+    size_t expectedBlockAddress4 = firstAlignedAddress;
     auto actualBlockAddress4 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().getBlockAddress(1, 0));
     if (expectedBlockAddress4 != actualBlockAddress4) {
         printString("Assert 4 has failed. Expected ");
@@ -336,9 +336,8 @@ bool BuddyAllocatorTest::assertGetBlockAddress() {
     }
 
     size_t expectedBlockAddress5 = firstAlignedAddress
-            + 9 * BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE
-            + 1452 * BLOCK_SIZE;
-    auto actualBlockAddress5 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().getBlockAddress(9, 1452));
+            + 60 * (BLOCK_SIZE << 5);
+    auto actualBlockAddress5 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().getBlockAddress(5, 60));
     if (expectedBlockAddress5 != actualBlockAddress5) {
         printString("Assert 5 has failed. Expected ");
         printInt(expectedBlockAddress5, 16);
@@ -394,8 +393,7 @@ bool BuddyAllocatorTest::assertAllocate() {
     }
 
     initializeBuddyAllocator();
-    size_t expectedBlockAddress3 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
-            + 11 * BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE;
+    size_t expectedBlockAddress3 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator();
     auto actualBlockAddress3 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(2048 * BLOCK_SIZE));
     if (expectedBlockAddress3 != actualBlockAddress3 || getNumberOfFreeBlocks() != 0) {
         printString("Assert 3 has failed. Expected ");
@@ -423,8 +421,7 @@ bool BuddyAllocatorTest::assertAllocate() {
     }
 
     initializeBuddyAllocator();
-    size_t expectedBlockAddress51 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
-            + 10 * BuddyAllocator::getInstance().maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE;
+    size_t expectedBlockAddress51 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator();
     auto actualBlockAddress51 = reinterpret_cast<size_t>(BuddyAllocator::getInstance().allocate(1024 * BLOCK_SIZE));
     size_t expectedBlockAddress52 = MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()
             + 1024 * BLOCK_SIZE;
@@ -432,9 +429,9 @@ bool BuddyAllocatorTest::assertAllocate() {
     if (expectedBlockAddress51 != actualBlockAddress51 || expectedBlockAddress52 != actualBlockAddress52
         || getNumberOfFreeBlocks() != 10) {
         printString("Assert 5 has failed. Expected ");
-        printInt(expectedBlockAddress52);
+        printInt(expectedBlockAddress51);
         printString(", but actually got ");
-        printInt(actualBlockAddress52);
+        printInt(actualBlockAddress51);
         printString(".\n\n");
         testPassed = false;
     }
@@ -444,6 +441,46 @@ bool BuddyAllocatorTest::assertAllocate() {
         return true;
     } else {
         printString("*****There are failed assertions for allocate method*****\n\n");
+        return false;
+    }
+}
+
+bool BuddyAllocatorTest::assertDeallocate() {
+    printString("Testing deallocate method.\n");
+    bool testPassed = true;
+
+    initializeBuddyAllocator();
+    int numberOfFreeBlocksBeforeAllocation = getNumberOfFreeBlocks();
+
+    void* ptr1 = BuddyAllocator::getInstance().allocate(15690);
+    void* ptr2 = BuddyAllocator::getInstance().allocate(50 * BLOCK_SIZE);
+    void* ptr3 = BuddyAllocator::getInstance().allocate(103094);
+    void* ptr4 = BuddyAllocator::getInstance().allocate(523489);
+    void* ptr5 = BuddyAllocator::getInstance().allocate(88888);
+
+    BuddyAllocator::getInstance().deallocate(ptr1, 15690);
+    BuddyAllocator::getInstance().deallocate(ptr2, 50 * BLOCK_SIZE);
+    BuddyAllocator::getInstance().deallocate(ptr3, 103094);
+    BuddyAllocator::getInstance().deallocate(ptr4, 523489);
+    BuddyAllocator::getInstance().deallocate(ptr5, 88888);
+
+    int numberOfFreeBlocksAfterDeallocation = getNumberOfFreeBlocks();
+
+    if (numberOfFreeBlocksBeforeAllocation != numberOfFreeBlocksAfterDeallocation) {
+        printString("Assert 1 has failed. Expected ");
+        printInt(numberOfFreeBlocksBeforeAllocation);
+        printString(", but actually got ");
+        printInt(numberOfFreeBlocksAfterDeallocation);
+        printString(".\n\n");
+        testPassed = false;
+        testPassed = false;
+    }
+
+    if (testPassed) {
+        printString("All assertions for deallocate method have passed.\n\n");
+        return true;
+    } else {
+        printString("*****There are failed assertions for deallocate method*****\n\n");
         return false;
     }
 }

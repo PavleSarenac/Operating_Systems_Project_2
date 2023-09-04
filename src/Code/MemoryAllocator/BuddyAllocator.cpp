@@ -80,11 +80,9 @@ int BuddyAllocator::getFreeBlockIndex(int exponent) const {
 }
 
 void* BuddyAllocator::getBlockAddress(int exponent, int blockIndex) const {
-     return static_cast<char*>(firstAlignedAddress)
-            + exponent * (maxUsedNumberOfBlocksOfSameSize * BLOCK_SIZE)
-            + blockIndex * BLOCK_SIZE;
+     return static_cast<char*>(firstAlignedAddress) + blockIndex * (BLOCK_SIZE << exponent);
 }
 
 int BuddyAllocator::getBlockIndexFromAddress(void* blockAddress, int exponent) const {
-    return static_cast<int>((reinterpret_cast<size_t>(blockAddress) - reinterpret_cast<size_t>(getBlockAddress(exponent, 0))) / BLOCK_SIZE);
+    return static_cast<int>((reinterpret_cast<size_t>(blockAddress) - reinterpret_cast<size_t>(firstAlignedAddress)) / (BLOCK_SIZE << exponent));
 }
