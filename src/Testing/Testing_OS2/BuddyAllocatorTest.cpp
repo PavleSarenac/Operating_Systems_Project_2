@@ -450,27 +450,65 @@ bool BuddyAllocatorTest::assertDeallocate() {
     bool testPassed = true;
 
     initializeBuddyAllocator();
-    int numberOfFreeBlocksBeforeAllocation = getNumberOfFreeBlocks();
-
+    size_t numberOfFreeBlocksBeforeAllocation1 = getNumberOfFreeBlocks();
     void* ptr1 = BuddyAllocator::getInstance().allocate(15690);
     void* ptr2 = BuddyAllocator::getInstance().allocate(50 * BLOCK_SIZE);
     void* ptr3 = BuddyAllocator::getInstance().allocate(103094);
     void* ptr4 = BuddyAllocator::getInstance().allocate(523489);
     void* ptr5 = BuddyAllocator::getInstance().allocate(88888);
-
     BuddyAllocator::getInstance().deallocate(ptr1, 15690);
     BuddyAllocator::getInstance().deallocate(ptr2, 50 * BLOCK_SIZE);
     BuddyAllocator::getInstance().deallocate(ptr3, 103094);
     BuddyAllocator::getInstance().deallocate(ptr4, 523489);
     BuddyAllocator::getInstance().deallocate(ptr5, 88888);
-
-    int numberOfFreeBlocksAfterDeallocation = getNumberOfFreeBlocks();
-
-    if (numberOfFreeBlocksBeforeAllocation != numberOfFreeBlocksAfterDeallocation) {
+    size_t numberOfFreeBlocksAfterDeallocation1 = getNumberOfFreeBlocks();
+    if (numberOfFreeBlocksBeforeAllocation1 != numberOfFreeBlocksAfterDeallocation1) {
         printString("Assert 1 has failed. Expected ");
-        printInt(numberOfFreeBlocksBeforeAllocation);
+        printInt(numberOfFreeBlocksBeforeAllocation1);
         printString(", but actually got ");
-        printInt(numberOfFreeBlocksAfterDeallocation);
+        printInt(numberOfFreeBlocksAfterDeallocation1);
+        printString(".\n\n");
+        testPassed = false;
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    size_t numberOfFreeBlocksBeforeAllocation2 = getNumberOfFreeBlocks();
+    void* ptr11 = BuddyAllocator::getInstance().allocate(1);
+    BuddyAllocator::getInstance().deallocate(ptr11, 1);
+    size_t numberOfFreeBlocksAfterDeallocation2 = getNumberOfFreeBlocks();
+    if (numberOfFreeBlocksBeforeAllocation2 != numberOfFreeBlocksAfterDeallocation2) {
+        printString("Assert 2 has failed. Expected ");
+        printInt(numberOfFreeBlocksBeforeAllocation2);
+        printString(", but actually got ");
+        printInt(numberOfFreeBlocksAfterDeallocation2);
+        printString(".\n\n");
+        testPassed = false;
+        testPassed = false;
+    }
+
+    initializeBuddyAllocator();
+    size_t numberOfFreeBlocksBeforeAllocation3 = getNumberOfFreeBlocks();
+    typedef struct RandomStruct {
+        char c;
+        int num1;
+        long num2;
+        long long num3;
+        size_t arr1[150];
+    } RandomStruct;
+    RandomStruct* randomStructArray[100];
+    for (int i = 0; i < 100; i++) {
+        randomStructArray[i] = static_cast<RandomStruct*>(BuddyAllocator::getInstance().allocate(sizeof(RandomStruct)));
+    }
+    for (int i = 0; i < 100; i++) {
+        BuddyAllocator::getInstance().deallocate(randomStructArray[i], sizeof(RandomStruct));
+    }
+    size_t numberOfFreeBlocksAfterDeallocation3 = getNumberOfFreeBlocks();
+    if (numberOfFreeBlocksBeforeAllocation3 != numberOfFreeBlocksAfterDeallocation3) {
+        printString("Assert 3 has failed. Expected ");
+        printInt(numberOfFreeBlocksBeforeAllocation3);
+        printString(", but actually got ");
+        printInt(numberOfFreeBlocksAfterDeallocation3);
         printString(".\n\n");
         testPassed = false;
         testPassed = false;
