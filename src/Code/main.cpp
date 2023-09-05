@@ -30,7 +30,7 @@ void userMain(void* arg) {
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
 
     // OS2 projekat testovi
-    BuddyAllocatorTest::runTests();
+    //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa

@@ -14,14 +14,14 @@ public:
     void operator=(const BuddyAllocator&) = delete;
     void setup(void* firstAlignedAddress, int totalNumberOfBlocks);
     void* allocate(int numberOfBytes);
-    void deallocate(void* blockForDeallocation, size_t numberOfBytes);
+    void deallocate(void* blockForDeallocation, int numberOfBytes);
 private:
     int numberOfBlocksOfSameSize[MAX_EXPONENT + 1];
     bool isBlockFree[MAX_EXPONENT + 1][MAX_NUMBER_OF_BLOCKS_OF_SAME_SIZE];
     void* firstAlignedAddress;
     int maxUsedExponent, maxUsedNumberOfBlocksOfSameSize;
 
-    BuddyAllocator();
+    BuddyAllocator() = default;
     static int getExponentForNumberOfBlocks(int numberOfBlocks);
     static int getExponentForNumberOfBytes(int numberOfBytes);
     int getFreeBlockIndex(int exponent) const;

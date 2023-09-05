@@ -1,7 +1,5 @@
 #include "../../../h/Code/MemoryAllocator/BuddyAllocator.hpp"
 
-BuddyAllocator::BuddyAllocator() {}
-
 BuddyAllocator& BuddyAllocator::getInstance() {
     static BuddyAllocator buddyAllocator;
     return buddyAllocator;
@@ -41,7 +39,7 @@ void* BuddyAllocator::allocate(int numberOfBytes) {
     return getBlockAddress(minNeededExponent, freeBlockIndex);
 }
 
-void BuddyAllocator::deallocate(void* blockForDeallocation, size_t numberOfBytes) {
+void BuddyAllocator::deallocate(void* blockForDeallocation, int numberOfBytes) {
     int exponent = getExponentForNumberOfBytes(numberOfBytes);
     int blockIndex = getBlockIndexFromAddress(blockForDeallocation, exponent);
     while (exponent < maxUsedExponent) {
