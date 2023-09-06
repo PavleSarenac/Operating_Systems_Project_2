@@ -25,6 +25,7 @@ private:
     static void moveSlabToCorrectSlabList(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromDirtyToFullList(kmem_cache_t* cache, kmem_slab_t* slab);
+    static void moveSlabFromFreeToFullList(kmem_cache_t* cache, kmem_slab_t* slab);
     static int getTotalUsedMemoryInBytesInCache(kmem_cache_t* cache);
     static int getTotalAllocatedMemoryInBytesInCache(kmem_cache_t* cache);
 };

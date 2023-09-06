@@ -91,10 +91,12 @@ void* SlabAllocator::getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
 }
 
 void SlabAllocator::moveSlabToCorrectSlabList(kmem_cache_t* cache, kmem_slab_t* slab) {
-    if (slab->numberOfFreeSlots == cache->numberOfObjectsInOneSlab - 1) {
-        moveSlabFromFreeToDirtyList(cache, slab);
-    } else if (slab->numberOfFreeSlots == 0) {
+    if (slab->numberOfFreeSlots == 0 && cache->numberOfObjectsInOneSlab > 1) {
         moveSlabFromDirtyToFullList(cache, slab);
+    } else if (slab->numberOfFreeSlots == 0) {
+        moveSlabFromFreeToFullList(cache, slab);
+    } else if (slab->numberOfFreeSlots == cache->numberOfObjectsInOneSlab - 1) {
+        moveSlabFromFreeToDirtyList(cache, slab);
     }
 }
 
@@ -106,6 +108,12 @@ void SlabAllocator::moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t
 
 void SlabAllocator::moveSlabFromDirtyToFullList(kmem_cache_t* cache, kmem_slab_t* slab) {
     cache->headOfDirtySlabsList = cache->headOfDirtySlabsList->nextSlab;
+    slab->nextSlab = cache->headOfFullSlabsList;
+    cache->headOfFullSlabsList = slab;
+}
+
+void SlabAllocator::moveSlabFromFreeToFullList(kmem_cache_t* cache, kmem_slab_t* slab) {
+    cache->headOfFreeSlabsList = cache->headOfFreeSlabsList->nextSlab;
     slab->nextSlab = cache->headOfFullSlabsList;
     cache->headOfFullSlabsList = slab;
 }
