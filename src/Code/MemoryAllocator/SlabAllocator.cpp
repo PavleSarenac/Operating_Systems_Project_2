@@ -39,7 +39,7 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
     newCache->objectSizeInBytes = objectSizeInBytes;
     newCache->cacheSizeInBlocks = 0;
     newCache->numberOfSlabs = 0;
-    newCache->numberOfObjectsInOneSlab = (objectSizeInBytes > BLOCK_SIZE ? 1 : (BLOCK_SIZE >> 1) / objectSizeInBytes);
+    newCache->numberOfObjectsInOneSlab = calculateNumberOfSlotsInSlab(objectSizeInBytes);
     newCache->objectConstructor = objectConstructor;
     newCache->objectDestructor = objectDestructor;
     newCache->headOfFreeSlabsList = nullptr;
@@ -48,6 +48,15 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
     newCache->nextCache = headOfCacheList;
     headOfCacheList = newCache;
     return newCache;
+}
+
+size_t SlabAllocator::calculateNumberOfSlotsInSlab(size_t objectSizeInBytes) {
+    if (objectSizeInBytes > BLOCK_SIZE) return 1;
+    size_t numberOfSlots = 0;
+    while (sizeof(kmem_slab_t) + numberOfSlots * sizeof(int) + numberOfSlots * objectSizeInBytes <= BLOCK_SIZE) {
+        numberOfSlots++;
+    }
+    return --numberOfSlots;
 }
 
 kmem_slab_t* SlabAllocator::getSlabWithFreeObject(kmem_cache_t* cache) {

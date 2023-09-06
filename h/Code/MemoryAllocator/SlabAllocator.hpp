@@ -18,6 +18,7 @@ private:
     SlabAllocator() = default;
     static kmem_cache_t* initializeNewCache(kmem_cache_t* newCache, const char* cacheName, size_t objectSizeInBytes,
                                             void (*objectConstructor)(void*), void (*objectDestructor)(void*));
+    static size_t calculateNumberOfSlotsInSlab(size_t objectSizeInBytes);
     static kmem_slab_t* getSlabWithFreeObject(kmem_cache_t* cache);
     static kmem_slab_t* allocateNewFreeSlab(kmem_cache_t* cache);
     static kmem_slab_t* initializeNewFreeSlab(kmem_cache_t* cache, kmem_slab_t* newFreeSlab);
