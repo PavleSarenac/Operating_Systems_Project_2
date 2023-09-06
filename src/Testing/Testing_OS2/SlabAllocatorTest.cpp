@@ -19,14 +19,26 @@ bool SlabAllocatorTest::assertAllocateObject() {
     class Class1 {
     public:
         long long c;
+        char arr[5000];
     };
-    MemoryAllocationHelperFunctions::initializeBuddyAllocator();
-    kmem_cache_t* cache = SlabAllocator::createCache("Class1", sizeof(Class1), nullptr, nullptr);
+    kmem_init(reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
+              static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));
+    kmem_cache_t* cache = kmem_cache_create("Class1", sizeof(Class1), nullptr, nullptr);
     auto obj1Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
     obj1Class1->c = 'a';
     auto obj2Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
     obj2Class1->c = 'a';
-    SlabAllocator::printCacheInfo(cache);
+    auto obj3Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
+    obj3Class1->c = 'a';
+    auto obj4Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
+    obj4Class1->c = 'a';
+    auto obj5Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
+    obj5Class1->c = 'a';
+    auto obj6Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
+    obj6Class1->c = 'a';
+    auto obj7Class1 = reinterpret_cast<Class1*>(kmem_cache_alloc(cache));
+    obj7Class1->c = 'a';
+    kmem_cache_info(cache);
 
     if (testPassed) {
         printString("All assertions for allocateObject method have passed.\n\n");

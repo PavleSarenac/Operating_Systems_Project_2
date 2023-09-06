@@ -65,7 +65,7 @@ kmem_slab_t* SlabAllocator::getSlabWithFreeObject(kmem_cache_t* cache) {
 kmem_slab_t* SlabAllocator::allocateNewFreeSlab(kmem_cache_t* cache) {
     size_t totalSlabSizeInBytes = sizeof(kmem_slab_t) + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
     auto newFreeSlab = static_cast<kmem_slab_t*>(BuddyAllocator::getInstance().allocate(totalSlabSizeInBytes));
-    cache->cacheSizeInBlocks += totalSlabSizeInBytes / BLOCK_SIZE + totalSlabSizeInBytes % BLOCK_SIZE ? 1 : 0;
+    cache->cacheSizeInBlocks += (totalSlabSizeInBytes / BLOCK_SIZE + (totalSlabSizeInBytes % BLOCK_SIZE != 0 ? 1 : 0));
     cache->numberOfSlabs++;
     return initializeNewFreeSlab(cache, newFreeSlab);
 }
