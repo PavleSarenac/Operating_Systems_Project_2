@@ -4,20 +4,20 @@
 #include "../../../lib/hw.h"
 
 #define BLOCK_SIZE (4096)
-typedef struct kmem_slot_s {
-    int nextFreeSlotIndex;
-    void* object;
-} kmem_slot_t;
+#define MAX_CACHE_NAME_LENGTH (20)
+#define NUMBER_OF_OBJECTS_IN_ONE_SLAB (1)
 typedef struct kmem_slab_s {
-    unsigned numberOfFreeSlots;
-    static const unsigned slabSize = 10;
-    int headOfFreeSlotsIndex;
-    kmem_slot_t slots[slabSize];
+    size_t numberOfFreeSlots;
+    int firstFreeSlotIndex;
+    int slots[NUMBER_OF_OBJECTS_IN_ONE_SLAB];
     kmem_slab_s* nextSlab;
 } kmem_slab_t;
 typedef struct kmem_cache_s {
-    const char* cacheName;
-    int objectSize;
+    char cacheName[MAX_CACHE_NAME_LENGTH];
+    size_t objectSizeInBytes;
+    size_t cacheSizeInBlocks;
+    size_t numberOfSlabs;
+    size_t numberOfObjectsInOneSlab;
     void (*objectConstructor)(void*);
     void (*objectDestructor)(void*);
     kmem_slab_t* headOfFreeSlabsList;
@@ -25,10 +25,10 @@ typedef struct kmem_cache_s {
     kmem_slab_t* headOfFullSlabsList;
     kmem_cache_s* nextCache;
 } kmem_cache_t;
-kmem_cache_t* headOfCacheList = nullptr;
 
 void kmem_init(void *space, int block_num);
-kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void *), void (*dtor)(void *)); // Allocate cache
+kmem_cache_t *kmem_cache_create(const char *name, size_t size,
+                                void (*ctor)(void *), void (*dtor)(void *)); // Allocate cache
 int kmem_cache_shrink(kmem_cache_t *cachep); // Shrink cache
 void *kmem_cache_alloc(kmem_cache_t *cachep); // Allocate one object from cache
 void kmem_cache_free(kmem_cache_t *cachep, void *objp); // Deallocate one object from cache

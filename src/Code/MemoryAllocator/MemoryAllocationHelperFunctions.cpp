@@ -1,4 +1,5 @@
 #include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
+#include "../../../h/Code/MemoryAllocator/BuddyAllocator.hpp"
 
 size_t MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator() {
     auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
@@ -21,4 +22,10 @@ size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllo
     }
     finalTotalNumberOfMemoryBlocksForBuddyAllocator >>= 1;
     return finalTotalNumberOfMemoryBlocksForBuddyAllocator;
+}
+
+void MemoryAllocationHelperFunctions::initializeBuddyAllocator() {
+    BuddyAllocator::getInstance().setup(
+            reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
+            static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));
 }

@@ -15,7 +15,6 @@ public:
     static bool assertDeallocate();
 private:
     static size_t getNumberOfFreeBlocks();
-    static void initializeBuddyAllocator();
 };
 
 #endif

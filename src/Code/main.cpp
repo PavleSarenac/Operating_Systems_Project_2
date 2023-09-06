@@ -14,6 +14,7 @@
 #include "../../h/Testing/Testing_OS1/Periodic_Threads_CPP_API_Test.hpp"
 
 #include "../../h/Testing/Testing_OS2/BuddyAllocatorTest.hpp"
+#include "../../h/Testing/Testing_OS2/SlabAllocatorTest.hpp"
 
 void userMain(void* arg) {
     // OS1 projekat testovi
@@ -30,7 +31,10 @@ void userMain(void* arg) {
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
 
     // OS2 projekat testovi
+
     //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
+
+    SlabAllocatorTest::runTests();  // test SlabAllocator klase
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
