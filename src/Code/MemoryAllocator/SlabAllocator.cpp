@@ -21,6 +21,7 @@ void* SlabAllocator::allocateObject(kmem_cache_t* cache) {
 }
 
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
+    printString("-------------------------------------------------------------------\n");
     printString("Cache name: "); printString(cache->cacheName); printString("\n");
     printString("Size of one object in bytes: "); printInt(cache->objectSizeInBytes); printString("\n");
     printString("Size of whole cache in number of blocks with size 4096B: "); printInt(cache->cacheSizeInBlocks); printString("\n");
@@ -28,6 +29,32 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("Number of objects in one slab: "); printInt(cache->numberOfObjectsInOneSlab); printString("\n");
     printString("Percent of used memory in cache: "); printInt(SlabAllocator::getTotalUsedMemoryInBytesInCache(cache));
     printString("B/"); printInt(SlabAllocator::getTotalAllocatedMemoryInBytesInCache(cache)); printString("B\n");
+    printString("--------------------------Additional info--------------------------\n");
+    printString("Number of free slabs: "); printInt(getNumberOfFreeSlabs(cache)); printString("\n");
+    printString("Number of dirty slabs: "); printInt(getNumberOfDirtySlabs(cache)); printString("\n");
+    printString("Number of full slabs: "); printInt(getNumberOfFullSlabs(cache)); printString("\n");
+    printString("-------------------------------------------------------------------\n");
+}
+
+int SlabAllocator::getNumberOfFreeSlabs(kmem_cache_t* cache) {
+    int numberOfFreeSlabs = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfFreeSlabsList; currentSlab; currentSlab = currentSlab->nextSlab)
+        numberOfFreeSlabs++;
+    return numberOfFreeSlabs;
+}
+
+int SlabAllocator::getNumberOfDirtySlabs(kmem_cache_t* cache) {
+    int numberOfDirtySlabs = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfDirtySlabsList; currentSlab; currentSlab = currentSlab->nextSlab)
+        numberOfDirtySlabs++;
+    return numberOfDirtySlabs;
+}
+
+int SlabAllocator::getNumberOfFullSlabs(kmem_cache_t* cache) {
+    int numberOfFullSlabs = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfFullSlabsList; currentSlab; currentSlab = currentSlab->nextSlab)
+        numberOfFullSlabs++;
+    return numberOfFullSlabs;
 }
 
 kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const char *cacheName, size_t objectSizeInBytes,

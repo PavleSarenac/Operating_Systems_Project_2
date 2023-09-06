@@ -4,7 +4,7 @@
 class SlabAllocatorTest {
 public:
     static void runTests();
-    static bool assertAllocateObject();
+    static void assertAllocateObject();
 };
 
 #endif
