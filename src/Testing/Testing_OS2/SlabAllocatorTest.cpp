@@ -19,7 +19,7 @@ bool SlabAllocatorTest::assertAllocateObject() {
     class Class1 {
     public:
         long long c;
-        char arr[5000];
+        char arr[280];
     };
     kmem_init(reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
               static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));

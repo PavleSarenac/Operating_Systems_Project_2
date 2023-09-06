@@ -39,7 +39,7 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
     newCache->objectSizeInBytes = objectSizeInBytes;
     newCache->cacheSizeInBlocks = 0;
     newCache->numberOfSlabs = 0;
-    newCache->numberOfObjectsInOneSlab = NUMBER_OF_OBJECTS_IN_ONE_SLAB;
+    newCache->numberOfObjectsInOneSlab = (objectSizeInBytes > BLOCK_SIZE ? 1 : (BLOCK_SIZE >> 1) / objectSizeInBytes);
     newCache->objectConstructor = objectConstructor;
     newCache->objectDestructor = objectDestructor;
     newCache->headOfFreeSlabsList = nullptr;
@@ -63,7 +63,8 @@ kmem_slab_t* SlabAllocator::getSlabWithFreeObject(kmem_cache_t* cache) {
 }
 
 kmem_slab_t* SlabAllocator::allocateNewFreeSlab(kmem_cache_t* cache) {
-    size_t totalSlabSizeInBytes = sizeof(kmem_slab_t) + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
+    size_t totalSlabSizeInBytes = sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab
+            + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
     auto newFreeSlab = static_cast<kmem_slab_t*>(BuddyAllocator::getInstance().allocate(totalSlabSizeInBytes));
     cache->cacheSizeInBlocks += (totalSlabSizeInBytes / BLOCK_SIZE + (totalSlabSizeInBytes % BLOCK_SIZE != 0 ? 1 : 0));
     cache->numberOfSlabs++;
@@ -83,7 +84,8 @@ kmem_slab_t* SlabAllocator::initializeNewFreeSlab(kmem_cache_t* cache, kmem_slab
 }
 
 void* SlabAllocator::getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
-    void* object = reinterpret_cast<char*>(slab) + sizeof(kmem_slab_t) + slab->firstFreeSlotIndex * cache->objectSizeInBytes;
+    void* object = reinterpret_cast<char*>(slab) + sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab +
+            slab->firstFreeSlotIndex * cache->objectSizeInBytes;
     slab->firstFreeSlotIndex = slab->slots[slab->firstFreeSlotIndex];
     slab->numberOfFreeSlots--;
     moveSlabToCorrectSlabList(cache, slab);

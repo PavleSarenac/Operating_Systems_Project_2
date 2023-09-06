@@ -4,13 +4,12 @@
 #include "../../../lib/hw.h"
 
 #define BLOCK_SIZE (4096)
-#define MAX_CACHE_NAME_LENGTH (20)
-#define NUMBER_OF_OBJECTS_IN_ONE_SLAB (1)
+#define MAX_CACHE_NAME_LENGTH (15)
 typedef struct kmem_slab_s {
     size_t numberOfFreeSlots;
     int firstFreeSlotIndex;
-    int slots[NUMBER_OF_OBJECTS_IN_ONE_SLAB];
     kmem_slab_s* nextSlab;
+    int slots[];
 } kmem_slab_t;
 typedef struct kmem_cache_s {
     char cacheName[MAX_CACHE_NAME_LENGTH];
