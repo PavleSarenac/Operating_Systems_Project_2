@@ -98,3 +98,7 @@ size_t BuddyAllocator::getNumberOfFreeBytes() const {
 size_t BuddyAllocator::getNumberOfAllocatedBytes() const {
     return MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator() - getNumberOfFreeBytes();
 }
+
+size_t BuddyAllocator::getNumberOfUsedBlocks() const {
+    return getNumberOfAllocatedBytes() / BLOCK_SIZE;
+}

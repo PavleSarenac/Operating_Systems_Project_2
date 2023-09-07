@@ -13,7 +13,7 @@ void SlabAllocatorTest::assertAllocateObject() {
     };
     kmem_cache_t* cache1 = kmem_cache_create("Class1", sizeof(Class1), nullptr, nullptr);
 
-    Class1* arr1[1];
+    Class1* arr1[2723];
     for (auto &i : arr1) {
         i = reinterpret_cast<Class1*>(kmem_cache_alloc(cache1));
     }

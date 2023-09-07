@@ -92,6 +92,9 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("BuddyAllocator percent of used bytes: ");
     printSizet(BuddyAllocator::getInstance().getNumberOfAllocatedBytes()); printString("B/");
     printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator()); printString("B\n");
+    printString("BuddyAllocator percent of used 4KB blocks: ");
+    printSizet(BuddyAllocator::getInstance().getNumberOfUsedBlocks()); printString("/");
+    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()); printString("\n");
     printString("FirstFitAllocator first address: 0x");
     printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator(), 16); printString("\n");
     printString("\n");
