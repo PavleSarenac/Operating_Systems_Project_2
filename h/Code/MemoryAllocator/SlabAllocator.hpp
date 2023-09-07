@@ -16,6 +16,7 @@ public:
     static void printCacheInfo(kmem_cache_t* cache);
 private:
     SlabAllocator() = default;
+    static kmem_cache_t* findExistingCache(const char* cacheName);
     static kmem_cache_t* initializeNewCache(kmem_cache_t* newCache, const char* cacheName, size_t objectSizeInBytes,
                                             void (*objectConstructor)(void*), void (*objectDestructor)(void*));
     static size_t calculateNumberOfSlotsInSlab(size_t objectSizeInBytes);
@@ -32,6 +33,7 @@ private:
     static int getNumberOfFreeSlabs(kmem_cache_t* cache);
     static int getNumberOfDirtySlabs(kmem_cache_t* cache);
     static int getNumberOfFullSlabs(kmem_cache_t* cache);
+    static bool areCacheNamesEqual(char existingCacheName[MAX_CACHE_NAME_LENGTH], const char* newCacheName);
 };
 
 #endif

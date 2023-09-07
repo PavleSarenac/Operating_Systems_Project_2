@@ -11,6 +11,8 @@ SlabAllocator& SlabAllocator::getInstance() {
 
 kmem_cache_t* SlabAllocator::createCache(const char *cacheName, size_t objectSizeInBytes,
                                           void (*objectConstructor)(void *), void (*objectDestructor)(void *)) {
+    kmem_cache_t* existingCache = findExistingCache(cacheName);
+    if (existingCache) return existingCache;
     auto newCache = static_cast<kmem_cache_t*>(BuddyAllocator::getInstance().allocate(sizeof(kmem_cache_t)));
     return initializeNewCache(newCache, cacheName, objectSizeInBytes, objectConstructor, objectDestructor);
 }
@@ -34,6 +36,23 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("Number of dirty slabs: "); printInt(getNumberOfDirtySlabs(cache)); printString("\n");
     printString("Number of full slabs: "); printInt(getNumberOfFullSlabs(cache)); printString("\n");
     printString("-------------------------------------------------------------------\n");
+}
+
+kmem_cache_t* SlabAllocator::findExistingCache(const char* cacheName) {
+    for (kmem_cache_t* currentCache = headOfCacheList; currentCache; currentCache = currentCache->nextCache)
+        if (areCacheNamesEqual(currentCache->cacheName, cacheName)) return currentCache;
+    return nullptr;
+}
+
+bool SlabAllocator::areCacheNamesEqual(char existingCacheName[MAX_CACHE_NAME_LENGTH], const char* newCacheName) {
+    char* newCachePointer = const_cast<char*>(newCacheName);
+    int existingCacheIndex = 0;
+    while (*newCachePointer != '\0') {
+        if (*newCachePointer != existingCacheName[existingCacheIndex]) return false;
+        newCachePointer++;
+        existingCacheIndex++;
+    }
+    return true;
 }
 
 int SlabAllocator::getNumberOfFreeSlabs(kmem_cache_t* cache) {
