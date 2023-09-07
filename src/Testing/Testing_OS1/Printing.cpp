@@ -74,3 +74,20 @@ void printInt(int xx, int base, int sgn)
 
     UNLOCK();
 }
+
+void printSizet(unsigned long long xx, int base)
+{
+    LOCK();
+    char buf[21];
+    int i;
+
+    i = 0;
+    do{
+        buf[i++] = digits[xx % base];
+    }while((xx /= base) != 0);
+
+    while(--i >= 0)
+        putc(buf[i]);
+
+    UNLOCK();
+}

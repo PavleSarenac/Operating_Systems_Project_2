@@ -22,8 +22,6 @@ private:
     size_t totalNumberOfBlocks;
 
     MemoryAllocator();
-    static size_t calculateFirstAlignedAddress();
-    static size_t calculateTotalNumberOfMemoryBlocks(MemoryAllocator* memoryAllocator);
     static void initializeFreeSegmentsList(MemoryAllocator* memoryAllocator);
     void removeFromFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);
     void addRemainingFragmentToFreeSegmentsList(FreeSegment* freeSegment, size_t numberOfRequestedBlocks);

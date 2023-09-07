@@ -8,14 +8,36 @@ size_t MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator(
     return heapStartAddress + offsetForAlignment;
 }
 
-size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocks() {
-    size_t firstAlignedAddress = getFirstAlignedAddressForBuddyAllocator();
-    size_t lastAvailableAddress = reinterpret_cast<size_t>(HEAP_END_ADDR) - 1;
-    return (lastAvailableAddress - firstAlignedAddress) / BLOCK_SIZE;
+size_t MemoryAllocationHelperFunctions::getLastAvailableAddressForBuddyAllocator() {
+    auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
+    auto heapEndAddress = reinterpret_cast<size_t>(HEAP_END_ADDR) - 1;
+    size_t lastAvailableAddressForBuddyAllocator = heapStartAddress + (((heapEndAddress - heapStartAddress) * 125) / 1000);
+    return lastAvailableAddressForBuddyAllocator;
 }
 
-size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator() {
-    size_t initialTotalNumberOfMemoryBlocksForBuddyAlocator = (getTotalNumberOfMemoryBlocks() * 125) / 1000;
+size_t MemoryAllocationHelperFunctions::getTotalNumberOfBytesAssignedToBuddyAllocator() {
+    return getLastAvailableAddressForBuddyAllocator() - getFirstAlignedAddressForBuddyAllocator();
+}
+
+size_t MemoryAllocationHelperFunctions::getTotalNumberOf4KBMemoryBlocksAssignedToBuddyAllocator() {
+    return getTotalNumberOfBytesAssignedToBuddyAllocator() / BLOCK_SIZE;
+}
+
+size_t MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator() {
+    auto firstAvailableAddressAfterBuddyAllocator = getLastAvailableAddressForBuddyAllocator() + 1;
+    bool isHeapStartAddressAligned = firstAvailableAddressAfterBuddyAllocator % MEM_BLOCK_SIZE == 0;
+    size_t offsetForAlignment = isHeapStartAddressAligned ? 0 : (MEM_BLOCK_SIZE - firstAvailableAddressAfterBuddyAllocator % MEM_BLOCK_SIZE);
+    return firstAvailableAddressAfterBuddyAllocator + offsetForAlignment;
+}
+
+size_t MemoryAllocationHelperFunctions::getTotalNumberOf8BMemoryBlocksForFirstFitAllocator() {
+    size_t firstAlignedAddress = getFirstAlignedAddressForFirstFitAllocator();
+    size_t lastAvailableAddress = reinterpret_cast<size_t>(HEAP_END_ADDR) - 1;
+    return (lastAvailableAddress - firstAlignedAddress) / MEM_BLOCK_SIZE;
+}
+
+size_t MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator() {
+    size_t initialTotalNumberOfMemoryBlocksForBuddyAlocator = getTotalNumberOf4KBMemoryBlocksAssignedToBuddyAllocator();
     size_t finalTotalNumberOfMemoryBlocksForBuddyAllocator = 1;
     while (finalTotalNumberOfMemoryBlocksForBuddyAllocator <= initialTotalNumberOfMemoryBlocksForBuddyAlocator) {
         finalTotalNumberOfMemoryBlocksForBuddyAllocator <<= 1;
@@ -24,8 +46,12 @@ size_t MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllo
     return finalTotalNumberOfMemoryBlocksForBuddyAllocator;
 }
 
+size_t MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator() {
+    return getTotalNumberOfUsedMemoryBlocksForBuddyAllocator() * BLOCK_SIZE;
+}
+
 void MemoryAllocationHelperFunctions::initializeBuddyAllocator() {
     BuddyAllocator::getInstance().setup(
             reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),
-            static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()));
+            static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()));
 }

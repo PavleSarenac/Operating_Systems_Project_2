@@ -26,7 +26,7 @@ void userMain(void* arg) {
     //ConsumerProducerSyncCPP::Consumer_Producer_Sync_CPP_API_Test(); // kompletan CPP API sa semaforima, sinhrona promena konteksta (prosao)
 
     //ThreadSleepTest::Thread_Sleep_C_API_Test(); // uspavljivanje i budjenje niti, C API test (prosao)
-    //ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
+    ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
 
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
 
@@ -34,14 +34,14 @@ void userMain(void* arg) {
 
     //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
 
-    SlabAllocatorTest::runTests();  // test SlabAllocator klase
+    //SlabAllocatorTest::runTests();  // test SlabAllocator klase
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
 // nakon toga, funkcija main treba da pokrene nit nad funkcijom userMain
 void main() {
     auto firstAlignedAddress = reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator());
-    auto numberOfMemoryBlocksForBuddyAllocator = static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator());
+    auto numberOfMemoryBlocksForBuddyAllocator = static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator());
     kmem_init(firstAlignedAddress, numberOfMemoryBlocksForBuddyAllocator);
 
     // upisivanje adrese prekidne rutine u registar stvec

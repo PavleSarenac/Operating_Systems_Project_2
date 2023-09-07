@@ -5,7 +5,9 @@
 
 class KernelSemaphore {
 public:
-    explicit KernelSemaphore(unsigned short initialSemaphoreValue = 1) : semaphoreValue(initialSemaphoreValue) {}
+    static void slabAllocatorConstructor(void* kernelSemaphoreObject);
+    static void slabAllocatorDestructor(void* kernelSemaphoreObject);
+
     ~KernelSemaphore();
     static KernelSemaphore* createSemaphore(unsigned short initialSemaphoreValue = 1);
     static int closeSemaphore(KernelSemaphore* semaphore);
@@ -29,6 +31,8 @@ protected:
     TCB* unblockFirstThreadInList();
 
 private:
+    explicit KernelSemaphore(unsigned short initialSemaphoreValue = 1) : semaphoreValue(initialSemaphoreValue) {}
+
     void insertThreadIntoBlockedList(TCB* tcb);
     TCB* removeThreadFromBlockedList();
 

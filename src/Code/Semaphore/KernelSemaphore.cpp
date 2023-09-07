@@ -1,6 +1,17 @@
 #include "../../../h/Code/Semaphore/KernelSemaphore.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 
+void KernelSemaphore::slabAllocatorConstructor(void *kernelSemaphoreObject) {
+    auto kernelSemaphore = reinterpret_cast<KernelSemaphore*>(kernelSemaphoreObject);
+    kernelSemaphore->semaphoreValue = 1;
+    kernelSemaphore->blockedThreadsHead = nullptr;
+    kernelSemaphore->blockedThreadsTail = nullptr;
+}
+
+void KernelSemaphore::slabAllocatorDestructor(void *kernelSemaphoreObject) {
+    KernelSemaphore::closeSemaphore(reinterpret_cast<KernelSemaphore*>(kernelSemaphoreObject));
+}
+
 KernelSemaphore::~KernelSemaphore() {
     KernelSemaphore::closeSemaphore(this);
 }

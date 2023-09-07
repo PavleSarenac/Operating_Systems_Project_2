@@ -15,6 +15,8 @@ public:
     void setup(void* firstAlignedAddress, int totalNumberOfBlocks);
     void* allocate(int numberOfBytes);
     void deallocate(void* blockForDeallocation, int numberOfBytes);
+    size_t getNumberOfFreeBytes() const;
+    size_t getNumberOfAllocatedBytes() const;
 private:
     int numberOfBlocksOfSameSize[MAX_EXPONENT + 1];
     bool isBlockFree[MAX_EXPONENT + 1][MAX_NUMBER_OF_BLOCKS_OF_SAME_SIZE];

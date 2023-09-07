@@ -6,7 +6,7 @@ BuddyAllocator& BuddyAllocator::getInstance() {
 }
 
 void BuddyAllocator::setup(void* firstAlignedAddress, int totalNumberOfBlocks) {
-    if (totalNumberOfBlocks > static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfMemoryBlocksForBuddyAllocator()))
+    if (totalNumberOfBlocks > static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()))
         return;
     this->firstAlignedAddress = firstAlignedAddress;
     this->maxUsedExponent = getExponentForNumberOfBlocks(totalNumberOfBlocks);
@@ -83,4 +83,18 @@ void* BuddyAllocator::getBlockAddress(int exponent, int blockIndex) const {
 
 int BuddyAllocator::getBlockIndexFromAddress(void* blockAddress, int exponent) const {
     return static_cast<int>((reinterpret_cast<size_t>(blockAddress) - reinterpret_cast<size_t>(firstAlignedAddress)) / (BLOCK_SIZE << exponent));
+}
+
+size_t BuddyAllocator::getNumberOfFreeBytes() const {
+    size_t numberOfFreeBytes = 0;
+    for (int i = 0; i <= maxUsedExponent; i++) {
+        for (int j = 0; j < numberOfBlocksOfSameSize[i]; j++) {
+            numberOfFreeBytes += isBlockFree[i][j] ? ((1 << i) * BLOCK_SIZE) : 0;
+        }
+    }
+    return numberOfFreeBytes;
+}
+
+size_t BuddyAllocator::getNumberOfAllocatedBytes() const {
+    return MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator() - getNumberOfFreeBytes();
 }

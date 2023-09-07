@@ -23,6 +23,7 @@ private:
     static kmem_slab_t* getSlabWithFreeObject(kmem_cache_t* cache);
     static kmem_slab_t* allocateNewFreeSlab(kmem_cache_t* cache);
     static kmem_slab_t* initializeNewFreeSlab(kmem_cache_t* cache, kmem_slab_t* newFreeSlab);
+    static void callConstructorForAllObjectsInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static void* getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabToCorrectSlabList(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab);
@@ -33,7 +34,7 @@ private:
     static int getNumberOfFreeSlabs(kmem_cache_t* cache);
     static int getNumberOfDirtySlabs(kmem_cache_t* cache);
     static int getNumberOfFullSlabs(kmem_cache_t* cache);
-    static bool areCacheNamesEqual(char existingCacheName[MAX_CACHE_NAME_LENGTH], const char* newCacheName);
+    static bool areCacheNamesEqual(const char existingCacheName[MAX_CACHE_NAME_LENGTH], const char* newCacheName);
 };
 
 #endif

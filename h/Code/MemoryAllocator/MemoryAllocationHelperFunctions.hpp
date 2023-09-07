@@ -6,8 +6,13 @@
 
 namespace MemoryAllocationHelperFunctions {
     size_t getFirstAlignedAddressForBuddyAllocator();
-    size_t getTotalNumberOfMemoryBlocks();
-    size_t getTotalNumberOfMemoryBlocksForBuddyAllocator();
+    size_t getLastAvailableAddressForBuddyAllocator();
+    size_t getTotalNumberOfBytesAssignedToBuddyAllocator();
+    size_t getTotalNumberOf4KBMemoryBlocksAssignedToBuddyAllocator();
+    size_t getTotalNumberOfUsedMemoryBlocksForBuddyAllocator();
+    size_t getTotalNumberOfUsedBytesForBuddyAllocator();
+    size_t getFirstAlignedAddressForFirstFitAllocator();
+    size_t getTotalNumberOf8BMemoryBlocksForFirstFitAllocator();
     void initializeBuddyAllocator();
 }
 

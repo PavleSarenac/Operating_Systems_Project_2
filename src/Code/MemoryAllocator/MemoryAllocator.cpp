@@ -1,8 +1,9 @@
 #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
+#include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
 
 MemoryAllocator::MemoryAllocator() {
-    firstAlignedAddress = calculateFirstAlignedAddress();
-    totalNumberOfBlocks = calculateTotalNumberOfMemoryBlocks(this);
+    firstAlignedAddress = MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator();
+    totalNumberOfBlocks = MemoryAllocationHelperFunctions::getTotalNumberOf8BMemoryBlocksForFirstFitAllocator();
     initializeFreeSegmentsList(this);
 }
 
@@ -43,18 +44,6 @@ int MemoryAllocator::deallocateSegment(void* memorySegmentForDealloaction) {
         return mergeWithNextFreeSegment(newFreeSegment, nextFreeSegment);
     }
     return insertAfterPreviousFreeSegment(newFreeSegment, previousFreeSegment);
-}
-
-size_t MemoryAllocator::calculateFirstAlignedAddress() {
-    auto heapStartAddress = reinterpret_cast<size_t>(HEAP_START_ADDR);
-    bool isHeapStartAddressAligned = heapStartAddress % MEM_BLOCK_SIZE == 0;
-    size_t offsetForAlignment = isHeapStartAddressAligned ? 0 : (MEM_BLOCK_SIZE - heapStartAddress % MEM_BLOCK_SIZE);
-    return heapStartAddress + offsetForAlignment;
-}
-
-size_t MemoryAllocator::calculateTotalNumberOfMemoryBlocks(MemoryAllocator* memoryAllocator) {
-    size_t lastAvailableAddress = reinterpret_cast<size_t>(HEAP_END_ADDR) - 1;
-    return (lastAvailableAddress - memoryAllocator->firstAlignedAddress) / MEM_BLOCK_SIZE;
 }
 
 void MemoryAllocator::initializeFreeSegmentsList(MemoryAllocator* memoryAllocator) {
