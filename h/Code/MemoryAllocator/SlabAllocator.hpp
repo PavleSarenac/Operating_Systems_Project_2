@@ -17,6 +17,7 @@ public:
     static void* allocateObject(kmem_cache_t* cache);
     static void deallocateObject(kmem_cache_t* cache, void* objectPointer);
     static void* allocateBuffer(size_t bufferSizeInBytes);
+    static void deallocateBuffer(const void* bufferPointer);
     static void printCacheInfo(kmem_cache_t* cache);
     static const char* getBufferCacheName(size_t exponent);
 private:

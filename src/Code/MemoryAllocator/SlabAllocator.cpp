@@ -40,6 +40,15 @@ void* SlabAllocator::allocateBuffer(size_t bufferSizeInBytes) {
     return allocateObject(bufferCache);
 }
 
+void SlabAllocator::deallocateBuffer(const void* bufferPointer) {
+    for (kmem_cache_t* currentCache = headOfCacheList; currentCache; currentCache = currentCache->nextCache) {
+        if (deallocateObjectInSlabList(currentCache, currentCache->headOfDirtySlabsList, const_cast<void*>(bufferPointer)))
+            break;
+        if (deallocateObjectInSlabList(currentCache, currentCache->headOfFullSlabsList, const_cast<void*>(bufferPointer)))
+            break;
+    }
+}
+
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("---------------------------Mandatory cache info----------------------------\n");
     printString("Cache name: "); printString(cache->cacheName); printString("\n");

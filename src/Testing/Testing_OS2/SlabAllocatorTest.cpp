@@ -9,6 +9,7 @@ public:
     char c[3000];
 };
 Class1* arr1[arrSize];
+void* bufferArr[arrSize];
 
 void SlabAllocatorTest::runTests() {
     //objectAllocFreeTest();
@@ -33,11 +34,13 @@ void SlabAllocatorTest::objectAllocFreeTest() {
 }
 
 void SlabAllocatorTest::bufferAllocFreeTest() {
-    void* buff = kmalloc(1 << 17);
-    kmalloc(1 << 17);
-    kmalloc(1 << 17);
-    kmalloc(1 << 17);
-    kmalloc((1 << 15) - 55);
-    kmem_cache_t* bufferSize5 = kmem_cache_create("size-17", 1, nullptr, nullptr);
+    for (int i = 0; i < arrSize; i++) {
+        bufferArr[i] = kmalloc(25);
+    }
+    kmem_cache_t* bufferSize5 = kmem_cache_create("size-5", 1, nullptr, nullptr);
+    kmem_cache_info(bufferSize5);
+    for (int i = 0; i < arrSize; i++) {
+        kfree(bufferArr[i]);
+    }
     kmem_cache_info(bufferSize5);
 }
