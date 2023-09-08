@@ -26,13 +26,11 @@ private:
     static void callConstructorForAllObjectsInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static void* getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabToCorrectSlabListAfterAllocation(kmem_cache_t* cache, kmem_slab_t* slab);
-    static void moveSlabToCorrectSlabListAfterDeallocation(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromDirtyToFullList(kmem_cache_t* cache, kmem_slab_t* slab);
     static void moveSlabFromFreeToFullList(kmem_cache_t* cache, kmem_slab_t* slab);
-    static void moveSlabFromFullToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab);
-    static void moveSlabFromFullToFreeList(kmem_cache_t* cache, kmem_slab_t* slab);
-    static void moveSlabFromDirtyToFreeList(kmem_cache_t* cache, kmem_slab_t* slab);
+    static void moveSlabToCorrectSlabListAfterDeallocation(kmem_cache_t* cache, kmem_slab_t* slab);
+    static void changeSlabListAfterDeallocation(kmem_slab_t* slab, kmem_slab_t*& headOfCurrentList, kmem_slab_t*& headOfNewList);
     static int getTotalUsedMemoryInBytesInCache(kmem_cache_t* cache);
     static int getTotalAllocatedMemoryInBytesInCache(kmem_cache_t* cache);
     static int getNumberOfFreeSlabs(kmem_cache_t* cache);

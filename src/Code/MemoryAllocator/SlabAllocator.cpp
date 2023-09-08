@@ -262,30 +262,29 @@ void SlabAllocator::moveSlabToCorrectSlabListAfterAllocation(kmem_cache_t* cache
 
 void SlabAllocator::moveSlabToCorrectSlabListAfterDeallocation(kmem_cache_t* cache, kmem_slab_t* slab) {
     if (slab->numberOfFreeSlots == 1 && cache->numberOfObjectsInOneSlab > 1) {
-        moveSlabFromFullToDirtyList(cache, slab);
+        changeSlabListAfterDeallocation(slab, cache->headOfFullSlabsList, cache->headOfDirtySlabsList);
     } else if (slab->numberOfFreeSlots == 1) {
-        moveSlabFromFullToFreeList(cache, slab);
+        changeSlabListAfterDeallocation(slab, cache->headOfFullSlabsList, cache->headOfFreeSlabsList);
     } else if (slab->numberOfFreeSlots == cache->numberOfObjectsInOneSlab) {
-        moveSlabFromDirtyToFreeList(cache, slab);
+        changeSlabListAfterDeallocation(slab, cache->headOfDirtySlabsList, cache->headOfFreeSlabsList);
     }
 }
 
-void SlabAllocator::moveSlabFromFullToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab) {
-    cache->headOfFullSlabsList = cache->headOfFullSlabsList->nextSlab;
-    slab->nextSlab = cache->headOfDirtySlabsList;
-    cache->headOfDirtySlabsList = slab;
-}
-
-void SlabAllocator::moveSlabFromFullToFreeList(kmem_cache_t* cache, kmem_slab_t* slab) {
-    cache->headOfFullSlabsList = cache->headOfFullSlabsList->nextSlab;
-    slab->nextSlab = cache->headOfFreeSlabsList;
-    cache->headOfFreeSlabsList = slab;
-}
-
-void SlabAllocator::moveSlabFromDirtyToFreeList(kmem_cache_t* cache, kmem_slab_t* slab) {
-    cache->headOfDirtySlabsList = cache->headOfDirtySlabsList->nextSlab;
-    slab->nextSlab = cache->headOfFreeSlabsList;
-    cache->headOfFreeSlabsList = slab;
+void SlabAllocator::changeSlabListAfterDeallocation(kmem_slab_t* slab, kmem_slab_t*& headOfCurrentList, kmem_slab_t*& headOfNewList) {
+    kmem_slab_t* previousSlab = nullptr;
+    for (kmem_slab_t* currentSlab = headOfCurrentList; currentSlab; currentSlab = currentSlab->nextSlab) {
+        if (currentSlab == slab) {
+            if (previousSlab) {
+                previousSlab->nextSlab = currentSlab->nextSlab;
+            } else {
+                headOfCurrentList = headOfCurrentList->nextSlab;
+            }
+            currentSlab->nextSlab = headOfNewList;
+            headOfNewList = currentSlab;
+            return;
+        }
+        previousSlab = currentSlab;
+    }
 }
 
 void SlabAllocator::moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab) {
