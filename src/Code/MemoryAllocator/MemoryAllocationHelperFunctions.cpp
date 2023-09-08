@@ -50,6 +50,16 @@ size_t MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocat
     return getTotalNumberOfUsedMemoryBlocksForBuddyAllocator() * BLOCK_SIZE;
 }
 
+size_t MemoryAllocationHelperFunctions::getExponentForNumberOfBytes(size_t numberOfBytes) {
+    if (numberOfBytes == 0) return 0;
+    size_t exponent = 0, numberOfAllocatedBytes = 1;
+    while (numberOfAllocatedBytes < numberOfBytes) {
+        numberOfAllocatedBytes <<= 1;
+        exponent++;
+    }
+    return exponent;
+}
+
 void MemoryAllocationHelperFunctions::initializeBuddyAllocator() {
     BuddyAllocator::getInstance().setup(
             reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator()),

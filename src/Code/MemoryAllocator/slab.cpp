@@ -21,6 +21,11 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp) {
     SlabAllocator::deallocateObject(cachep, objp);
 }
 
+void *kmalloc(size_t size) {
+    if (size <= 0) return nullptr;
+    return SlabAllocator::allocateBuffer(size);
+}
+
 void kmem_cache_info(kmem_cache_t *cachep) {
     if (!cachep) return;
     SlabAllocator::printCacheInfo(cachep);

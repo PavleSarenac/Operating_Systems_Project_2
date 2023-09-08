@@ -25,6 +25,21 @@ void SlabAllocator::deallocateObject(kmem_cache_t* cache, void* objectPointer) {
     deallocateObjectInSlabList(cache, cache->headOfFullSlabsList, objectPointer);
 }
 
+void* SlabAllocator::allocateBuffer(size_t bufferSizeInBytes) {
+    size_t exponent = MemoryAllocationHelperFunctions::getExponentForNumberOfBytes(bufferSizeInBytes);
+    if (exponent > MAX_BUFFER_SIZE_EXPONENT) return nullptr;
+    size_t finalBufferSizeInBytes;
+    if (exponent < MIN_BUFFER_SIZE_EXPONENT) {
+        finalBufferSizeInBytes = 1 << MIN_BUFFER_SIZE_EXPONENT;
+        exponent = MIN_BUFFER_SIZE_EXPONENT;
+    } else {
+        finalBufferSizeInBytes = 1 << exponent;
+    }
+    const char* bufferCacheName = getBufferCacheName(exponent);
+    kmem_cache_t* bufferCache = createCache(bufferCacheName, finalBufferSizeInBytes, nullptr, nullptr);
+    return allocateObject(bufferCache);
+}
+
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("---------------------------Mandatory cache info----------------------------\n");
     printString("Cache name: "); printString(cache->cacheName); printString("\n");
@@ -258,6 +273,23 @@ void SlabAllocator::changeSlabListAfterDeallocation(kmem_slab_t* slab, kmem_slab
         }
         previousSlab = currentSlab;
     }
+}
+
+const char* SlabAllocator::getBufferCacheName(size_t exponent) {
+    char allDigits[] = "0123456789";
+    const int NUMBER_BASE = 10;
+    char* bufferCacheName = const_cast<char*>("size-");
+    char reverseExponentString[3];
+    int reverseExponentStringPosition = 0, bufferCacheNamePosition = 5;
+    do {
+        reverseExponentString[reverseExponentStringPosition++] = allDigits[exponent % NUMBER_BASE];
+    } while((exponent /= NUMBER_BASE) != 0);
+    reverseExponentString[reverseExponentStringPosition] = '\0';
+
+    while (--reverseExponentStringPosition >= 0)
+        bufferCacheName[bufferCacheNamePosition++] = reverseExponentString[reverseExponentStringPosition];
+    bufferCacheName[bufferCacheNamePosition] = '\0';
+    return bufferCacheName;
 }
 
 int SlabAllocator::getTotalNumberOfFreeSlotsInFreeSlabsList(kmem_cache_t* cache) {

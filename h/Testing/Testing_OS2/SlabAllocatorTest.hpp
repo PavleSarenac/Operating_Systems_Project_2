@@ -4,6 +4,8 @@
 class SlabAllocatorTest {
 public:
     static void runTests();
+    static void objectAllocFreeTest();
+    static void bufferAllocFreeTest();
 };
 
 #endif
