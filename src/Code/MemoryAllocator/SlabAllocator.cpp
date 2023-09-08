@@ -4,17 +4,11 @@
 
 kmem_cache_t* SlabAllocator::headOfCacheList = nullptr;
 
-SlabAllocator& SlabAllocator::getInstance() {
-    static SlabAllocator slabAllocator;
-    return slabAllocator;
-}
-
 kmem_cache_t* SlabAllocator::createCache(const char *cacheName, size_t objectSizeInBytes,
                                           void (*objectConstructor)(void *), void (*objectDestructor)(void *)) {
-    if (objectSizeInBytes >
-        ((BLOCK_SIZE * ((1 << (BuddyAllocator::getInstance().getMaxUsedExponent() - 1)))) - (sizeof(kmem_slab_t) + sizeof(int)))) {
-        return nullptr;
-    }
+    bool isObjectSizeTooBig = objectSizeInBytes >
+            ((BLOCK_SIZE * ((1 << (BuddyAllocator::getInstance().getMaxUsedExponent() - 1)))) - (sizeof(kmem_slab_t) + sizeof(int)));
+    if (isObjectSizeTooBig) return nullptr;
     kmem_cache_t* existingCache = findExistingCache(cacheName);
     if (existingCache) return existingCache;
     auto newCache = static_cast<kmem_cache_t*>(BuddyAllocator::getInstance().allocate(sizeof(kmem_cache_t)));
@@ -63,6 +57,42 @@ void* SlabAllocator::allocateObject(kmem_cache_t* cache) {
     return getObjectFromSlab(cache, slab);
 }
 
+void SlabAllocator::deallocateObject(kmem_cache_t* cache, void* objectPointer) {
+    if (deallocateObjectInSlabList(cache, cache->headOfDirtySlabsList, objectPointer)) return;
+    deallocateObjectInSlabList(cache, cache->headOfFullSlabsList, objectPointer);
+}
+
+bool SlabAllocator::deallocateObjectInSlabList(kmem_cache_t* cache, kmem_slab_t* headOfSlabList, void* objectPointer) {
+    for (kmem_slab_t* currentSlab = headOfSlabList; currentSlab; currentSlab = currentSlab->nextSlab) {
+        size_t firstObjectAddressInCurrentSlab = getFirstObjectAddressInSlab(cache, currentSlab);
+        size_t lastObjectAddressInCurrentSlab = getLastObjectAddressInSlab(cache, currentSlab);
+        size_t currentObjectAddress = firstObjectAddressInCurrentSlab;
+        int objectIndex = 0;
+        while (currentObjectAddress <= lastObjectAddressInCurrentSlab) {
+            if (reinterpret_cast<size_t>(objectPointer) == currentObjectAddress) {
+                if (cache->objectDestructor) cache->objectDestructor(objectPointer);
+                if (cache->objectConstructor) cache->objectConstructor(objectPointer);
+                currentSlab->numberOfFreeSlots++;
+                currentSlab->slots[objectIndex] = currentSlab->firstFreeSlotIndex;
+                currentSlab->firstFreeSlotIndex = objectIndex;
+                moveSlabToCorrectSlabListAfterDeallocation(cache, currentSlab);
+                return true;
+            }
+            currentObjectAddress += cache->objectSizeInBytes;
+            objectIndex++;
+        }
+    }
+    return false;
+}
+
+size_t SlabAllocator::getFirstObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
+    return reinterpret_cast<size_t>(slab) + sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab;
+}
+
+size_t SlabAllocator::getLastObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
+    return getFirstObjectAddressInSlab(cache, slab) + (cache->numberOfObjectsInOneSlab - 1) * cache->objectSizeInBytes;
+}
+
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("---------------------------Mandatory cache info----------------------------\n");
     printString("Cache name: "); printString(cache->cacheName); printString("\n");
@@ -82,7 +112,8 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("Number of full slabs: "); printInt(getNumberOfFullSlabs(cache));
     printString(" (number of free slots: "); printInt(getTotalNumberOfFreeSlotsInFullSlabsList(cache));
     printString(")\n");
-    printString("Size of one slab in number of 4KB blocks: "); printSizet(cache->cacheSizeInBlocks/cache->numberOfSlabs);
+    printString("Size of one slab in number of 4KB blocks: ");
+    printSizet(cache->cacheSizeInBlocks ? cache->cacheSizeInBlocks/cache->numberOfSlabs : 0);
     printString("\n");
     printString("--------------------------------Other info---------------------------------\n");
     printString("Heap start address: 0x");
@@ -215,11 +246,11 @@ void* SlabAllocator::getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
             slab->firstFreeSlotIndex * cache->objectSizeInBytes;
     slab->firstFreeSlotIndex = slab->slots[slab->firstFreeSlotIndex];
     slab->numberOfFreeSlots--;
-    moveSlabToCorrectSlabList(cache, slab);
+    moveSlabToCorrectSlabListAfterAllocation(cache, slab);
     return object;
 }
 
-void SlabAllocator::moveSlabToCorrectSlabList(kmem_cache_t* cache, kmem_slab_t* slab) {
+void SlabAllocator::moveSlabToCorrectSlabListAfterAllocation(kmem_cache_t* cache, kmem_slab_t* slab) {
     if (slab->numberOfFreeSlots == 0 && cache->numberOfObjectsInOneSlab > 1) {
         moveSlabFromDirtyToFullList(cache, slab);
     } else if (slab->numberOfFreeSlots == 0) {
@@ -227,6 +258,34 @@ void SlabAllocator::moveSlabToCorrectSlabList(kmem_cache_t* cache, kmem_slab_t* 
     } else if (slab->numberOfFreeSlots == cache->numberOfObjectsInOneSlab - 1) {
         moveSlabFromFreeToDirtyList(cache, slab);
     }
+}
+
+void SlabAllocator::moveSlabToCorrectSlabListAfterDeallocation(kmem_cache_t* cache, kmem_slab_t* slab) {
+    if (slab->numberOfFreeSlots == 1 && cache->numberOfObjectsInOneSlab > 1) {
+        moveSlabFromFullToDirtyList(cache, slab);
+    } else if (slab->numberOfFreeSlots == 1) {
+        moveSlabFromFullToFreeList(cache, slab);
+    } else if (slab->numberOfFreeSlots == cache->numberOfObjectsInOneSlab) {
+        moveSlabFromDirtyToFreeList(cache, slab);
+    }
+}
+
+void SlabAllocator::moveSlabFromFullToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab) {
+    cache->headOfFullSlabsList = cache->headOfFullSlabsList->nextSlab;
+    slab->nextSlab = cache->headOfDirtySlabsList;
+    cache->headOfDirtySlabsList = slab;
+}
+
+void SlabAllocator::moveSlabFromFullToFreeList(kmem_cache_t* cache, kmem_slab_t* slab) {
+    cache->headOfFullSlabsList = cache->headOfFullSlabsList->nextSlab;
+    slab->nextSlab = cache->headOfFreeSlabsList;
+    cache->headOfFreeSlabsList = slab;
+}
+
+void SlabAllocator::moveSlabFromDirtyToFreeList(kmem_cache_t* cache, kmem_slab_t* slab) {
+    cache->headOfDirtySlabsList = cache->headOfDirtySlabsList->nextSlab;
+    slab->nextSlab = cache->headOfFreeSlabsList;
+    cache->headOfFreeSlabsList = slab;
 }
 
 void SlabAllocator::moveSlabFromFreeToDirtyList(kmem_cache_t* cache, kmem_slab_t* slab) {
