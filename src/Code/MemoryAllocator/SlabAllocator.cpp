@@ -11,6 +11,10 @@ SlabAllocator& SlabAllocator::getInstance() {
 
 kmem_cache_t* SlabAllocator::createCache(const char *cacheName, size_t objectSizeInBytes,
                                           void (*objectConstructor)(void *), void (*objectDestructor)(void *)) {
+    if (objectSizeInBytes >
+        ((BLOCK_SIZE * ((1 << (BuddyAllocator::getInstance().getMaxUsedExponent() - 1)))) - (sizeof(kmem_slab_t) + sizeof(int)))) {
+        return nullptr;
+    }
     kmem_cache_t* existingCache = findExistingCache(cacheName);
     if (existingCache) return existingCache;
     auto newCache = static_cast<kmem_cache_t*>(BuddyAllocator::getInstance().allocate(sizeof(kmem_cache_t)));
@@ -63,15 +67,23 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("---------------------------Mandatory cache info----------------------------\n");
     printString("Cache name: "); printString(cache->cacheName); printString("\n");
     printString("Size of one object in bytes: "); printSizet(cache->objectSizeInBytes); printString("\n");
-    printString("Size of whole cache in number of blocks with size 4096B: "); printSizet(cache->cacheSizeInBlocks); printString("\n");
+    printString("Size of all slabs in number of 4KB blocks: "); printSizet(cache->cacheSizeInBlocks); printString("\n");
     printString("Total number of slabs: "); printSizet(cache->numberOfSlabs); printString("\n");
     printString("Number of objects in one slab: "); printSizet(cache->numberOfObjectsInOneSlab); printString("\n");
     printString("Percent of used bytes in cache: "); printInt(SlabAllocator::getTotalUsedMemoryInBytesInCache(cache));
     printString("B/"); printInt(SlabAllocator::getTotalAllocatedMemoryInBytesInCache(cache)); printString("B\n");
     printString("---------------------------Additional cache info---------------------------\n");
-    printString("Number of free slabs: "); printInt(getNumberOfFreeSlabs(cache)); printString("\n");
-    printString("Number of dirty slabs: "); printInt(getNumberOfDirtySlabs(cache)); printString("\n");
-    printString("Number of full slabs: "); printInt(getNumberOfFullSlabs(cache)); printString("\n");
+    printString("Number of free slabs: "); printInt(getNumberOfFreeSlabs(cache));
+    printString(" (number of free slots: "); printInt(getTotalNumberOfFreeSlotsInFreeSlabsList(cache));
+    printString(")\n");
+    printString("Number of dirty slabs: "); printInt(getNumberOfDirtySlabs(cache));
+    printString(" (number of free slots: "); printInt(getTotalNumberOfFreeSlotsInDirtySlabsList(cache));
+    printString(")\n");
+    printString("Number of full slabs: "); printInt(getNumberOfFullSlabs(cache));
+    printString(" (number of free slots: "); printInt(getTotalNumberOfFreeSlotsInFullSlabsList(cache));
+    printString(")\n");
+    printString("Size of one slab in number of 4KB blocks: "); printSizet(cache->cacheSizeInBlocks/cache->numberOfSlabs);
+    printString("\n");
     printString("--------------------------------Other info---------------------------------\n");
     printString("Heap start address: 0x");
     printSizet(reinterpret_cast<size_t>(HEAP_START_ADDR), 16); printString("\n");
@@ -81,6 +93,8 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator(), 16); printString("\n");
     printString("BuddyAllocator last address: 0x");
     printSizet(MemoryAllocationHelperFunctions::getLastAvailableAddressForBuddyAllocator(), 16); printString("\n");
+    printString("FirstFitAllocator first address: 0x");
+    printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator(), 16); printString("\n");
     printString("BuddyAllocator total number of initially assigned bytes: ");
     printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfBytesAssignedToBuddyAllocator()); printString("B\n");
     printString("BuddyAllocator total number of initially assigned 4KB blocks: ");
@@ -95,9 +109,31 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printString("BuddyAllocator percent of used 4KB blocks: ");
     printSizet(BuddyAllocator::getInstance().getNumberOfUsedBlocks()); printString("/");
     printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()); printString("\n");
-    printString("FirstFitAllocator first address: 0x");
-    printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator(), 16); printString("\n");
     printString("\n");
+}
+
+int SlabAllocator::getTotalNumberOfFreeSlotsInFreeSlabsList(kmem_cache_t* cache) {
+    int totalNumberOfFreeSlots = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfFreeSlabsList; currentSlab; currentSlab = currentSlab->nextSlab) {
+        totalNumberOfFreeSlots += currentSlab->numberOfFreeSlots;
+    }
+    return totalNumberOfFreeSlots;
+}
+
+int SlabAllocator::getTotalNumberOfFreeSlotsInDirtySlabsList(kmem_cache_t* cache) {
+    int totalNumberOfFreeSlots = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfDirtySlabsList; currentSlab; currentSlab = currentSlab->nextSlab) {
+        totalNumberOfFreeSlots += currentSlab->numberOfFreeSlots;
+    }
+    return totalNumberOfFreeSlots;
+}
+
+int SlabAllocator::getTotalNumberOfFreeSlotsInFullSlabsList(kmem_cache_t* cache) {
+    int totalNumberOfFreeSlots = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfFullSlabsList; currentSlab; currentSlab = currentSlab->nextSlab) {
+        totalNumberOfFreeSlots += currentSlab->numberOfFreeSlots;
+    }
+    return totalNumberOfFreeSlots;
 }
 
 int SlabAllocator::getNumberOfFreeSlabs(kmem_cache_t* cache) {
@@ -122,9 +158,9 @@ int SlabAllocator::getNumberOfFullSlabs(kmem_cache_t* cache) {
 }
 
 size_t SlabAllocator::calculateNumberOfSlotsInSlab(size_t objectSizeInBytes) {
-    if (objectSizeInBytes > BLOCK_SIZE) return 1;
+    if (sizeof(kmem_slab_t) + 2 * sizeof(int) + 2 * objectSizeInBytes > 2 * BLOCK_SIZE) return 1;
     size_t numberOfSlots = 0;
-    while (sizeof(kmem_slab_t) + numberOfSlots * sizeof(int) + numberOfSlots * objectSizeInBytes <= BLOCK_SIZE) {
+    while (sizeof(kmem_slab_t) + numberOfSlots * sizeof(int) + numberOfSlots * objectSizeInBytes <= 2 * BLOCK_SIZE) {
         numberOfSlots++;
     }
     return --numberOfSlots;
@@ -146,7 +182,8 @@ kmem_slab_t* SlabAllocator::allocateNewFreeSlab(kmem_cache_t* cache) {
     size_t totalSlabSizeInBytes = sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab
             + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
     auto newFreeSlab = static_cast<kmem_slab_t*>(BuddyAllocator::getInstance().allocate(totalSlabSizeInBytes));
-    cache->cacheSizeInBlocks += (totalSlabSizeInBytes / BLOCK_SIZE + (totalSlabSizeInBytes % BLOCK_SIZE != 0 ? 1 : 0));
+    if (newFreeSlab == nullptr) return newFreeSlab;
+    cache->cacheSizeInBlocks += (1 << BuddyAllocator::getExponentForNumberOfBytes(totalSlabSizeInBytes));
     cache->numberOfSlabs++;
     return initializeNewFreeSlab(cache, newFreeSlab);
 }
@@ -173,6 +210,7 @@ void SlabAllocator::callConstructorForAllObjectsInSlab(kmem_cache_t* cache, kmem
 }
 
 void* SlabAllocator::getObjectFromSlab(kmem_cache_t* cache, kmem_slab_t* slab) {
+    if (slab == nullptr) return nullptr;
     void* object = reinterpret_cast<char*>(slab) + sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab +
             slab->firstFreeSlotIndex * cache->objectSizeInBytes;
     slab->firstFreeSlotIndex = slab->slots[slab->firstFreeSlotIndex];

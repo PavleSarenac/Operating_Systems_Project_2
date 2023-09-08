@@ -18,6 +18,9 @@ public:
     size_t getNumberOfFreeBytes() const;
     size_t getNumberOfAllocatedBytes() const;
     size_t getNumberOfUsedBlocks() const;
+    static int getExponentForNumberOfBlocks(int numberOfBlocks);
+    static int getExponentForNumberOfBytes(int numberOfBytes);
+    int getMaxUsedExponent() const { return maxUsedExponent; }
 private:
     int numberOfBlocksOfSameSize[MAX_EXPONENT + 1];
     bool isBlockFree[MAX_EXPONENT + 1][MAX_NUMBER_OF_BLOCKS_OF_SAME_SIZE];
@@ -25,8 +28,6 @@ private:
     int maxUsedExponent, maxUsedNumberOfBlocksOfSameSize;
 
     BuddyAllocator() = default;
-    static int getExponentForNumberOfBlocks(int numberOfBlocks);
-    static int getExponentForNumberOfBytes(int numberOfBytes);
     int getFreeBlockIndex(int exponent) const;
     void* getBlockAddress(int exponent, int blockIndex) const;
     int getBlockIndexFromAddress(void* blockAddress, int exponent) const;

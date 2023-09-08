@@ -34,6 +34,9 @@ private:
     static int getNumberOfFreeSlabs(kmem_cache_t* cache);
     static int getNumberOfDirtySlabs(kmem_cache_t* cache);
     static int getNumberOfFullSlabs(kmem_cache_t* cache);
+    static int getTotalNumberOfFreeSlotsInFreeSlabsList(kmem_cache_t* cache);
+    static int getTotalNumberOfFreeSlotsInDirtySlabsList(kmem_cache_t* cache);
+    static int getTotalNumberOfFreeSlotsInFullSlabsList(kmem_cache_t* cache);
     static bool areCacheNamesEqual(const char existingCacheName[MAX_CACHE_NAME_LENGTH], const char* newCacheName);
 };
 

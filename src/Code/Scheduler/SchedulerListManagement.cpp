@@ -2,7 +2,7 @@
 
 // ovo je telo funkcije koje ce izvrsavati idle nit (besposlena, vrti se u beskonacnoj petlji)
 // ona se daje procesoru samo onda kada nema drugih spremnih niti u scheduleru
-[[noreturn]] void idleFunction(void* arg) { while (true) { } }
+[[noreturn]] void idleFunction(void* arg) { while (true) {} }
 
 // uzimamo element sa pocetka ulancane liste
 TCB* removeFromScheduler(TCB*& head, TCB*& tail) {
