@@ -3,6 +3,7 @@
 #include "../../../h/Testing/Testing_OS1/Printing.hpp"
 #include "../../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
+#include "../../../h/Code/Console/KernelBuffer.hpp"
 
 struct thread_data {
     int id;
@@ -59,6 +60,11 @@ public:
         MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
         printString("\n");
         MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
+        printString("\n");
+        kmem_cache_t* cache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer), nullptr, nullptr);
+        kmem_cache_info(cache);
+        kmem_cache_t* cache2 = kmem_cache_create("size-12", (1 << 14), nullptr, nullptr);
+        kmem_cache_info(cache2);
 
         finished = true;
     }

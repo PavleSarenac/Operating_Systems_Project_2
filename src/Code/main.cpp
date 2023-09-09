@@ -34,13 +34,9 @@ void userMain(void* arg) {
 
     // OS2 projekat testovi
 
-    // Moji testovi
-    //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
-    //SlabAllocatorTest::runTests();  // test SlabAllocator klase (prosao)
-
     // Javni testovi
     //userMainSlabAllocatorOfficialExplicitTest();  // (prosao)
-    userMainSlabAllocatorOfficialImplicitTest();
+    //userMainSlabAllocatorOfficialImplicitTest();
 
     //MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
     //MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
