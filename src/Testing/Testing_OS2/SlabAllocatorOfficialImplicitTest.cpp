@@ -20,12 +20,6 @@ public:
         ForkThread* thread = new ForkThread(id + 1);
         ForkThread** threads = (ForkThread** ) mem_alloc(sizeof(ForkThread*) * id);
 
-        printString("\n");
-        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
-        printString("\n");
-        kmem_cache_t* cache = kmem_cache_create("TCB", 2, nullptr, nullptr);
-        kmem_cache_info(cache);
-
         if (threads != nullptr) {
             for (long i = 0; i < id; i++) {
                 threads[i] = new ForkThread(id);
@@ -75,24 +69,11 @@ private:
 void userMainSlabAllocatorOfficialImplicitTest() {
     ForkThread thread(1);
 
-    printString("\n");
-    MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
-    printString("\n");
-    MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
-    printString("\n");
-
     thread.start();
 
     while (!thread.isFinished()) {
         thread_dispatch();
     }
-
-    printString("\n");
-    MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
-    printString("\n");
-    MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
-    printString("\n");
-    SlabAllocator::printAllCacheInfo();
 
     printString("User main finished\n");
 }
