@@ -4,7 +4,7 @@
 #include "../../../lib/hw.h"
 
 #define BLOCK_SIZE (4096)
-#define MAX_CACHE_NAME_LENGTH (15)
+#define MAX_CACHE_NAME_LENGTH (30)
 typedef struct kmem_slab_s {
     size_t numberOfFreeSlots;
     int firstFreeSlotIndex;

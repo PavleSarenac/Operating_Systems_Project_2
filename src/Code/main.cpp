@@ -15,6 +15,7 @@
 
 #include "../../h/Testing/Testing_OS2/BuddyAllocatorTest.hpp"
 #include "../../h/Testing/Testing_OS2/SlabAllocatorTest.hpp"
+#include "../../h/Testing/Testing_OS2/SlabAllocatorOfficialExplicitTest.hpp"
 
 void userMain(void* arg) {
     // OS1 projekat testovi
@@ -36,9 +37,12 @@ void userMain(void* arg) {
     auto numberOfMemoryBlocksForBuddyAllocator = static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator());
     kmem_init(firstAlignedAddress, numberOfMemoryBlocksForBuddyAllocator);
 
+    // Moji testovi
     //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
+    //SlabAllocatorTest::runTests();  // test SlabAllocator klase
 
-    SlabAllocatorTest::runTests();  // test SlabAllocator klase
+    // Javni testovi
+    userMainSlabAllocatorOfficialExplicitTest();
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa

@@ -1,0 +1,6 @@
+#ifndef SLABALLOCATOROFFICIALEXPLICITTEST_HPP
+#define SLABALLOCATOROFFICIALEXPLICITTEST_HPP
+
+void userMainSlabAllocatorOfficialExplicitTest();
+
+#endif
