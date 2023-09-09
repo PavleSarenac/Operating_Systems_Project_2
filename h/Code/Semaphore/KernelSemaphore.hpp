@@ -39,8 +39,8 @@ private:
     TCB* removeThreadFromBlockedList();
 
     int semaphoreValue;
-    TCB* blockedThreadsHead = nullptr;
-    TCB* blockedThreadsTail = nullptr;
+    TCB* blockedThreadsHead;
+    TCB* blockedThreadsTail;
 };
 
 #endif

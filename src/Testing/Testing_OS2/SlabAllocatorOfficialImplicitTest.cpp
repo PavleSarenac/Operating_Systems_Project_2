@@ -3,7 +3,7 @@
 #include "../../../h/Testing/Testing_OS1/Printing.hpp"
 #include "../../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
-#include "../../../h/Code/Console/KernelBuffer.hpp"
+#include "../../../h/Code/MemoryAllocator/SlabAllocator.hpp"
 
 struct thread_data {
     int id;
@@ -19,6 +19,12 @@ public:
 
         ForkThread* thread = new ForkThread(id + 1);
         ForkThread** threads = (ForkThread** ) mem_alloc(sizeof(ForkThread*) * id);
+
+        printString("\n");
+        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+        printString("\n");
+        kmem_cache_t* cache = kmem_cache_create("TCB", 2, nullptr, nullptr);
+        kmem_cache_info(cache);
 
         if (threads != nullptr) {
             for (long i = 0; i < id; i++) {
@@ -86,6 +92,7 @@ void userMainSlabAllocatorOfficialImplicitTest() {
     printString("\n");
     MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
     printString("\n");
+    SlabAllocator::printAllCacheInfo();
 
     printString("User main finished\n");
 }

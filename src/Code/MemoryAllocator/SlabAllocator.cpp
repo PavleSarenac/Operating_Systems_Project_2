@@ -403,3 +403,9 @@ int SlabAllocator::getTotalUsedMemoryInBytesInCache(kmem_cache_t* cache) {
 int SlabAllocator::getTotalAllocatedMemoryInBytesInCache(kmem_cache_t* cache) {
     return cache->cacheSizeInBlocks * BLOCK_SIZE;
 }
+
+void SlabAllocator::printAllCacheInfo() {
+    for (kmem_cache_t* currentCache = headOfCacheList; currentCache; currentCache = currentCache->nextCache) {
+        printCacheInfo(currentCache);
+    }
+}

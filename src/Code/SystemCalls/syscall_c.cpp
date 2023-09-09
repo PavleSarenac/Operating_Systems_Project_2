@@ -1,4 +1,5 @@
 #include "../../../h/Code/SystemCalls/syscall_c.hpp"
+#include "../../../h/Code/MemoryAllocator/slab.hpp"
 
 void* mem_alloc(size_t size) { // size je broj bajtova koje je korisnik trazio - to cu zaokruziti na ceo broj blokova tako da korisnik dobije tacno toliko ili cak i vise memorije
     uint64 sysCallCode = 0x01; // kod ovog sistemskog poziva
@@ -45,7 +46,7 @@ int thread_create(thread_t* handle, void(*start_routine)(void*), void* arg) { //
         stack = nullptr;
     } else {
         // hocemo da na steku ima mesta za DEFAULT_STACK_SIZE (4096) bajtova - ima mesta za 512 vrednosti velicine uint64 (8 bajtova)
-        stack = mem_alloc(DEFAULT_STACK_SIZE);
+        stack = kmalloc(DEFAULT_STACK_SIZE);
         if (!stack) return -1;
     }
 
@@ -101,7 +102,7 @@ int thread_create_cpp(thread_t* handle, void(*start_routine)(void*), void* arg) 
         stack = nullptr;
     } else {
         // hocemo da na steku ima mesta za DEFAULT_STACK_SIZE (4096) bajtova - ima mesta za 512 vrednosti velicine uint64 (8 bajtova)
-        stack = mem_alloc(DEFAULT_STACK_SIZE);
+        stack = kmalloc(DEFAULT_STACK_SIZE);
     }
 
     // pakovanje argumenata za ovaj sistemski poziv u strukturu i pozivanje funkcije koja ce ih upisati u registre i izvrsiti ecall (softverski prekid)

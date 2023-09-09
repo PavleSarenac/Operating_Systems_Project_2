@@ -1,6 +1,7 @@
 #include "../../../h/Code/Thread/TCB.hpp"
-#include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 #include "../../../h/Code/SystemCalls/syscall_c.hpp"
+
+kmem_cache_t* TCB::threadCache = nullptr;
 
 int TCB::staticThreadId = 0;
 
@@ -15,12 +16,48 @@ uint64 TCB::timeSliceCounter = 0;
 TCB* TCB::sleepHead = nullptr;
 TCB* TCB::sleepTail = nullptr;
 
+void TCB::slabAllocatorConstructor(void *threadObject) {
+    auto thread = reinterpret_cast<TCB*>(threadObject);
+    thread->body = nullptr;
+    thread->arg = nullptr;
+    thread->timeSlice = DEFAULT_TIME_SLICE;
+    thread->stack = nullptr;
+    thread->finished = false;
+    thread->schedulerNextThread = nullptr;
+    thread->schedulerPrevThread = nullptr;
+    thread->sleepTime = 0;
+    thread->sleepNextThread = nullptr;
+    thread->sleepPrevThread = nullptr;
+    thread->semaphoreNextThread = nullptr;
+    thread->waitSemaphoreFailed = false;
+    thread->threadId = TCB::staticThreadId++;
+}
+
+void TCB::slabAllocatorDestructor(void *threadObject) {
+    kfree(static_cast<TCB*>(threadObject)->stack);
+}
+
 TCB* TCB::createThread(Body body, void* arg, void* stack, bool cppApi) {
-    if (cppApi) {
-        return new TCB(body, arg, stack, cppApi);
-    } else {
-        return new TCB(body, arg, stack);
+    if (!threadCache)
+        threadCache = kmem_cache_create("TCB", sizeof(TCB), &slabAllocatorConstructor, &slabAllocatorDestructor);
+    auto thread = new TCB;
+    thread->body = body;
+    thread->arg = arg;
+    thread->stack = static_cast<uint64*>(stack);
+    // u polju ra strukture context cuvamo adresu na koju bi trebalo da skoci nit;
+    // u konstruktoru podmecemo adresu staticke metode threadWrapper jer zelimo da se
+    // ona prva izvrsi za svaku novonapravljenu nit
+    thread->context.ra = reinterpret_cast<uint64>(&threadWrapper);
+    // sp se postavlja na vrh steka; posto sp pokazuje na poslednju zauzetu lokaciju, a na pocetku nijedna nije zauzeta,
+    // postavili smo ga na jednu adresu iznad prve u koju sme da se stavi nesto na stek;
+    // stek zauzima DEFAULT_STACK_SIZE (4096) bajtova, dakle ima mesta za 512 vrednosti velicine sizeof(uint64), tj. 8 bajtova
+    // to znaci da niz na koji pokazuje uint64* stack ima 512 elemenata - zato sam ispod kod indeksiranja uradio DEFAULT_STACK_SIZE / sizeof(uint64),
+    // da bih pristupio adresi koja je za jedan iznad poslednje adrese koju zauzima stek
+    thread->context.sp = stack ? reinterpret_cast<uint64>(&static_cast<uint64*>(stack)[DEFAULT_STACK_SIZE / sizeof(uint64)]) : 0;
+    if (!cppApi) {
+        if (body) Scheduler::getInstance().put(thread);
     }
+    return thread;
 }
 
 void TCB::insertSleepThread(uint64 time) {
@@ -74,52 +111,19 @@ void TCB::updateSleepThreadList() {
 }
 
 void* TCB::operator new(size_t n) {
-    void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
-    return ptr;
+    return kmem_cache_alloc(threadCache);
 }
 
 void* TCB::operator new[](size_t n) {
-    void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
-    return ptr;
+    return kmem_cache_alloc(threadCache);
 }
 
 void TCB::operator delete(void *ptr) {
-    MemoryAllocator::getInstance().deallocateSegment(ptr);
+    kmem_cache_free(threadCache, ptr);
 }
 
 void TCB::operator delete[](void *ptr) {
-    MemoryAllocator::getInstance().deallocateSegment(ptr);
-}
-
-void TCB::initializeClassAttributes(TCB* thisPointer, Body body, void* arg, void* stack) {
-    thisPointer->body = body;
-    thisPointer->arg = arg;
-    thisPointer->stack = static_cast<uint64*>(stack);
-    // u polju ra strukture context cuvamo adresu na koju bi trebalo da skoci nit;
-    // u konstruktoru podmecemo adresu staticke metode threadWrapper jer zelimo da se
-    // ona prva izvrsi za svaku novonapravljenu nit
-    thisPointer->context.ra = reinterpret_cast<uint64>(&threadWrapper);
-    // sp se postavlja na vrh steka; posto sp pokazuje na poslednju zauzetu lokaciju, a na pocetku nijedna nije zauzeta,
-    // postavili smo ga na jednu adresu iznad prve u koju sme da se stavi nesto na stek;
-    // stek zauzima DEFAULT_STACK_SIZE (4096) bajtova, dakle ima mesta za 512 vrednosti velicine sizeof(uint64), tj. 8 bajtova
-    // to znaci da niz na koji pokazuje uint64* stack ima 512 elemenata - zato sam ispod kod indeksiranja uradio DEFAULT_STACK_SIZE / sizeof(uint64),
-    // da bih pristupio adresi koja je za jedan iznad poslednje adrese koju zauzima stek
-    thisPointer->context.sp = stack ? reinterpret_cast<uint64>(&static_cast<uint64*>(stack)[DEFAULT_STACK_SIZE / sizeof(uint64)]) : 0;
-    thisPointer->finished = false;
-    thisPointer->threadId = TCB::staticThreadId++;
-}
-
-TCB::TCB(Body body, void* arg, void* stack) {
-    initializeClassAttributes(this, body, arg, stack);
-
-    // ako je body nullptr, to znaci da se kreira nit nad main-om i zelimo tada da main nastavi
-    // da se izvrsava, zato ga ne dajemo scheduleru jer bi ga to suspendovalo; u suprotnom, stavljamo
-    // nit u scheduler
-    if (body) Scheduler::getInstance().put(this);
-}
-
-TCB::TCB(Body body, void* arg, void* stack, bool cppApi) {
-    initializeClassAttributes(this, body, arg, stack);
+    kmem_cache_free(threadCache, ptr);
 }
 
 // promena konteksta

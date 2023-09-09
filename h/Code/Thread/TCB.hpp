@@ -8,6 +8,10 @@
 // klasa TCB predstavlja apstrakciju niti
 class TCB {
 public:
+    static void slabAllocatorConstructor(void* threadObject);
+    static void slabAllocatorDestructor(void* threadObject);
+    static kmem_cache_t* threadCache;
+
     // definisanje korisnickog tipa Body - predstavljace pokazivac na void funkciju koja prima void* parametar
     using Body = void (*)(void*);
 
@@ -69,7 +73,7 @@ public:
     static void operator delete(void* ptr);
     static void operator delete[](void* ptr);
 
-    ~TCB() { delete[] stack; }
+    ~TCB() = default;
 
     // pokazivac na nit koja se trenutno izvrsava se cuva u statickom javnom polju runningThread
     static TCB* runningThread;
@@ -82,11 +86,7 @@ private:
         uint64 sp;
     };
 
-    static void initializeClassAttributes(TCB* thisPointer, Body body, void* arg, void* stack);
-
-    TCB(Body body, void* arg, void* stack);
-
-    TCB(Body body, void* arg, void* stack, bool cppApi);
+    TCB() = default;
 
     // dispatch sluzi za promenu konteksta, pri cemu tekucu nit stavlja u rasporedjivac ukoliko ona nije zavrsena
     static void dispatch();
@@ -109,7 +109,7 @@ private:
     void* arg;
     // vremenski odsecak (kvantum) koji je dodeljen tekucem objektu klase TCB (niti)
     // to je broj perioda tajmera - on govori koliko vremena ce se nit izvrsavati
-    uint64 timeSlice = DEFAULT_TIME_SLICE;
+    uint64 timeSlice;
     // pokazivac na pocetak dela memorije od kog se smesta stek tekuceg objekta klase TCB (niti)
     // do ove adrese maksimalno stek moze da poraste, posto stek raste logicki od visih adresa ka nizim;
     // dakle, ova adresa je najniza do koje sme da ode stack pointer (sp)
@@ -122,8 +122,8 @@ private:
     // ove pokazivace cemo koristiti za ulancavanje niti u listu spremnih niti kojom ce scheduler da raspolaze
     // ove pokazivace cuvam ovde kao privatne atribute (obezbedjena enkapsulacija) klase TCB, da ne bih dinamicki alocirao
     // memoriju za posebne strukture za ulancavanje niti u listu jer to uzrokuje odredjene rezijske troskove i fragmentaciju memorije
-    TCB* schedulerNextThread = nullptr;
-    TCB* schedulerPrevThread = nullptr;
+    TCB* schedulerNextThread;
+    TCB* schedulerPrevThread;
 
     // u ovoj promenljivoj cuvamo koliko jos perioda tajmera tekuca nit treba da bude uspavana;
     // ovaj podatak cemo pamtiti tako sto cemo ulancanu listu uspavanih niti odrzavati uredjenom neopadajuce po preostalom vremenu
@@ -131,18 +131,18 @@ private:
     // da bude uspavana, dok za naredne elemente mozemo da pamtimo samo relativno preostalo vreme u odnosu na prethodne elemente;
     // na ovaj nacin, azuriranje liste na svaku periodu tajmera (prekid) je jednostavno, samo sleepTime prvog elementa liste se dekrementira
     // pa ukoliko je ta vrednost dosla do 0, onda se u red spremnih niti vracaju sve niti s pocetka ove liste koje imaju sleepTime = 0
-    uint64 sleepTime = 0;
+    uint64 sleepTime;
     // ovi pokazivaci nam sluze za formiranje ulancane liste uspavanih niti
     static TCB* sleepHead;
     static TCB* sleepTail;
-    TCB* sleepNextThread = nullptr;
-    TCB* sleepPrevThread = nullptr;
+    TCB* sleepNextThread;
+    TCB* sleepPrevThread;
 
     // ovaj pokazivac ce nam sluziti za uvezivanje u listu blokiranih niti na semaforu
-    TCB* semaphoreNextThread = nullptr;
+    TCB* semaphoreNextThread;
     // ovaj flag nam govori da li je sem_wait pozvan za tekucu nit bezuspesno obavljen - slucaj kada je pozvan sem_close i nasilno
     // se odblokira tekuca nit sa semafora
-    bool waitSemaphoreFailed = false;
+    bool waitSemaphoreFailed;
 
     static int staticThreadId;
     int threadId;
