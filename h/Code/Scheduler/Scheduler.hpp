@@ -1,6 +1,8 @@
 #ifndef SCHEDULER_HPP
 #define SCHEDULER_HPP
 
+#include "../../../h/Code/MemoryAllocator/slab.hpp"
+
 // forward declaration klase TCB - ovo smo uradili da bi prevodilac mogao da prepozna tip TCB* koji se koristi u klasi Scheduler
 // nisam uradio #include "TCB.hpp", jer sam u fajlu TCB.hpp uradio #include "Scheduler.hpp", tako da bi tada doslo do kruzne deklaracije,
 // tj. circular dependency
@@ -16,21 +18,20 @@ void insertIntoScheduler(TCB*& head, TCB*& tail, TCB* tcb);
 // klasu Scheduler smo dizajnirali kao singleton klasu - moze samo jedan objekat ove klase da se napravi
 class Scheduler {
 public:
+    static kmem_cache_t* schedulerCache;
+    static void slabAllocatorConstructor(void* schedulerObject);
     static Scheduler& getInstance();
-
     Scheduler(const Scheduler&) = delete;
-
     void operator=(const Scheduler&) = delete;
-
     TCB* get();
-
     void put(TCB* tcb);
 
 private:
-    Scheduler() = default;
+    static Scheduler* schedulerInstance;
+    TCB* schedulerHead;
+    TCB* schedulerTail;
 
-    TCB* schedulerHead = nullptr;
-    TCB* scheduletTail = nullptr;
+    Scheduler() = default;
 };
 
 #endif

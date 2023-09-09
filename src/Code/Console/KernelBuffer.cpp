@@ -18,7 +18,7 @@ void KernelBuffer::slabAllocatorConstructor(void* kernelBufferObject) {
 
 void KernelBuffer::slabAllocatorDestructor(void* kernelBufferObject) {
     auto kernelBuffer = static_cast<KernelBuffer*>(kernelBufferObject);
-    KernelBuffer::operator delete[](kernelBuffer->buffer);
+    kfree(kernelBuffer->buffer);
     delete kernelBuffer->spaceAvailable;
     delete kernelBuffer->itemAvailable;
     delete kernelBuffer->mutexHead;
@@ -32,10 +32,8 @@ KernelBuffer* KernelBuffer::putcGetInstance() {
                                                                 &slabAllocatorConstructor, &slabAllocatorDestructor);
         putcKernelBufferHandle = new KernelBuffer;
         putcKernelBufferHandle->buffer = static_cast<int*>(kmalloc(putcKernelBufferHandle->capacity * sizeof(int)));
-        return putcKernelBufferHandle;
-    } else {
-        return putcKernelBufferHandle;
     }
+    return putcKernelBufferHandle;
 }
 
 KernelBuffer* KernelBuffer::getcGetInstance() {
@@ -45,10 +43,8 @@ KernelBuffer* KernelBuffer::getcGetInstance() {
                                                                 &slabAllocatorConstructor, &slabAllocatorDestructor);
         getcKernelBufferHandle = new KernelBuffer;
         getcKernelBufferHandle->buffer = static_cast<int*>(kmalloc(getcKernelBufferHandle->capacity * sizeof(int)));
-        return getcKernelBufferHandle;
-    } else {
-        return getcKernelBufferHandle;
     }
+    return getcKernelBufferHandle;
 }
 
 void* KernelBuffer::operator new(size_t n) {
@@ -60,11 +56,11 @@ void* KernelBuffer::operator new[](size_t n) {
 }
 
 void KernelBuffer::operator delete(void *ptr) {
-    kfree(ptr);
+    kmem_cache_free(kernelBufferCache, ptr);
 }
 
 void KernelBuffer::operator delete[](void *ptr) {
-    kfree(ptr);
+    kmem_cache_free(kernelBufferCache, ptr);
 }
 
 void KernelBuffer::insertIntoBuffer(int value) {

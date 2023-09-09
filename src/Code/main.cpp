@@ -28,7 +28,7 @@ void userMain(void* arg) {
     //ConsumerProducerSyncCPP::Consumer_Producer_Sync_CPP_API_Test(); // kompletan CPP API sa semaforima, sinhrona promena konteksta (prosao)
 
     //ThreadSleepTest::Thread_Sleep_C_API_Test(); // uspavljivanje i budjenje niti, C API test (prosao)
-    //ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
+    ConsumerProducerAsyncCPP::Consumer_Producer_Async_CPP_API_Test(); // CPP API i asinhrona promena konteksta, kompletan test svega (prosao)
 
     //PeriodicThreadsTest::Periodic_Threads_CPP_API_Test();  // test periodicnih niti (prosao)
 

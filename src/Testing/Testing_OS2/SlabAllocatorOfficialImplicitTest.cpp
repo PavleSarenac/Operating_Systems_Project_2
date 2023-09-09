@@ -17,10 +17,6 @@ public:
         printSizet(id);
         printString("\n");
 
-        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
-        printString("\n");
-        MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
-
         ForkThread* thread = new ForkThread(id + 1);
         ForkThread** threads = (ForkThread** ) mem_alloc(sizeof(ForkThread*) * id);
 
@@ -57,17 +53,6 @@ public:
         printSizet(id);
         printString("\n");
 
-        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
-        printString("\n");
-        MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
-        printString("\n");
-        kmem_cache_t* cache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer), nullptr, nullptr);
-        kmem_cache_info(cache);
-        kmem_cache_t* cache2 = kmem_cache_create("size-13", (1 << 13), nullptr, nullptr);
-        kmem_cache_info(cache2);
-        kmem_cache_t* cache3 = kmem_cache_create("KernelSemaphore", 24, nullptr, nullptr);
-        kmem_cache_info(cache3);
-
         finished = true;
     }
 
@@ -84,11 +69,23 @@ private:
 void userMainSlabAllocatorOfficialImplicitTest() {
     ForkThread thread(1);
 
+    printString("\n");
+    MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+    printString("\n");
+    MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
+    printString("\n");
+
     thread.start();
 
     while (!thread.isFinished()) {
         thread_dispatch();
     }
+
+    printString("\n");
+    MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+    printString("\n");
+    MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
+    printString("\n");
 
     printString("User main finished\n");
 }
