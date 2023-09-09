@@ -3,17 +3,18 @@
 #include "../../../h/Code/MemoryAllocator/SlabAllocator.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
 
-const int arrSize = 10000;
+const int arrSize = 2000;
 class Class1 {
 public:
-    char c[3000];
+    char c[500];
 };
 Class1* arr1[arrSize];
 void* bufferArr[arrSize];
 
 void SlabAllocatorTest::runTests() {
-    //objectAllocFreeTest();
+    objectAllocFreeTest();
     bufferAllocFreeTest();
+    objectAllocFreeTest();
 }
 
 void SlabAllocatorTest::objectAllocFreeTest() {
@@ -26,7 +27,7 @@ void SlabAllocatorTest::objectAllocFreeTest() {
     printString("*****************************AFTER ALLOCATION******************************\n\n");
     kmem_cache_info(cache1);
     kmem_cache_free(cache1, arr1[0]);
-    for (int i = 0; i < arrSize - 77; i++) {
+    for (int i = 0; i < arrSize; i++) {
         kmem_cache_free(cache1, arr1[i]);
     }
     printString("*****************************AFTER DEALLOCATION****************************\n\n");
@@ -35,17 +36,24 @@ void SlabAllocatorTest::objectAllocFreeTest() {
 
 void SlabAllocatorTest::bufferAllocFreeTest() {
     for (int i = 0; i < arrSize; i++) {
-        bufferArr[i] = kmalloc(150);
+        bufferArr[i] = kmalloc(300);
     }
-    kmem_cache_t* bufferSize5 = kmem_cache_create("size-8", 1, nullptr, nullptr);
+    kmem_cache_t* bufferSize5 = kmem_cache_create("size-9", 1, nullptr, nullptr);
     kmem_cache_info(bufferSize5);
     for (int i = 0; i < arrSize; i++) {
         kfree(bufferArr[i]);
     }
     kmem_cache_info(bufferSize5);
+
     printInt(kmem_cache_shrink(bufferSize5));
     printString("\n");
+    for (int i = 0; i < 20; i++)
+        bufferArr[i] = kmalloc(300);
+    for (int i = 0; i < 20; i++)
+        kfree(bufferArr[i]);
+    kmem_cache_info(bufferSize5);
     printInt(kmem_cache_shrink(bufferSize5));
     printString("\n");
     kmem_cache_info(bufferSize5);
+    kmem_cache_destroy(bufferSize5);
 }

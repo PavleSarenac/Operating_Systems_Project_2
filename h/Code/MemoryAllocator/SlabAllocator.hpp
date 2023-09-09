@@ -19,6 +19,7 @@ public:
     static void deallocateObject(kmem_cache_t* cache, void* objectPointer);
     static void* allocateBuffer(size_t bufferSizeInBytes);
     static void deallocateBuffer(const void* bufferPointer);
+    static void destroyCache(kmem_cache_t* cache);
     static void printCacheInfo(kmem_cache_t* cache);
 private:
     static kmem_cache_t* findExistingCache(const char* cacheName);
@@ -49,7 +50,9 @@ private:
     static size_t getFirstObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static size_t getLastObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static const char* getBufferCacheName(size_t exponent);
-    static int deallocateFreeSlabsList(kmem_cache_t* cache);
+    static int destroySlabList(kmem_cache_t* cache, kmem_slab_t*& headOfSlabList);
+    static void destroyAllSlabLists(kmem_cache_t* cache);
+    static void removeCacheFromList(kmem_cache_t* cache);
 };
 
 #endif

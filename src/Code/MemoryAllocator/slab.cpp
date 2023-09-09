@@ -36,6 +36,11 @@ void kfree(const void *objp) {
     SlabAllocator::deallocateBuffer(objp);
 }
 
+void kmem_cache_destroy(kmem_cache_t *cachep) {
+    if (cachep == nullptr) return;
+    SlabAllocator::destroyCache(cachep);
+}
+
 void kmem_cache_info(kmem_cache_t *cachep) {
     if (!cachep) return;
     SlabAllocator::printCacheInfo(cachep);

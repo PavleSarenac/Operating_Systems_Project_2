@@ -16,11 +16,13 @@ kmem_cache_t* SlabAllocator::createCache(const char *cacheName, size_t objectSiz
 }
 
 int SlabAllocator::shrinkCache(kmem_cache_t* cache) {
-    if (cache->didCacheGrowSinceLastShrink) {
+    if (!cache->didCacheShrinkAtLeastOnce) {
+        cache->didCacheShrinkAtLeastOnce = true;
+    } else if (cache->didCacheGrowSinceLastShrink) {
         cache->didCacheGrowSinceLastShrink = false;
         return 0;
     }
-    return deallocateFreeSlabsList(cache);
+    return destroySlabList(cache, cache->headOfFreeSlabsList);
 }
 
 void* SlabAllocator::allocateObject(kmem_cache_t* cache) {
@@ -55,6 +57,12 @@ void SlabAllocator::deallocateBuffer(const void* bufferPointer) {
         if (deallocateObjectInSlabList(currentCache, currentCache->headOfFullSlabsList, const_cast<void*>(bufferPointer)))
             break;
     }
+}
+
+void SlabAllocator::destroyCache(kmem_cache_t* cache) {
+    destroyAllSlabLists(cache);
+    removeCacheFromList(cache);
+    BuddyAllocator::getInstance().deallocate(cache, BLOCK_SIZE);
 }
 
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
@@ -131,6 +139,7 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
         if (cacheName[i] == '\0') break;
     }
     newCache->didCacheGrowSinceLastShrink = false;
+    newCache->didCacheShrinkAtLeastOnce = false;
     newCache->objectSizeInBytes = objectSizeInBytes;
     newCache->cacheSizeInBlocks = 0;
     newCache->numberOfSlabs = 0;
@@ -240,6 +249,10 @@ bool SlabAllocator::deallocateObjectInSlabList(kmem_cache_t* cache, kmem_slab_t*
     for (kmem_slab_t* currentSlab = headOfSlabList; currentSlab; currentSlab = currentSlab->nextSlab) {
         size_t firstObjectAddressInCurrentSlab = getFirstObjectAddressInSlab(cache, currentSlab);
         size_t lastObjectAddressInCurrentSlab = getLastObjectAddressInSlab(cache, currentSlab);
+        if (reinterpret_cast<size_t>(objectPointer) < firstObjectAddressInCurrentSlab ||
+            reinterpret_cast<size_t>(objectPointer) > lastObjectAddressInCurrentSlab) {
+            continue;
+        }
         size_t currentObjectAddress = firstObjectAddressInCurrentSlab;
         int objectIndex = 0;
         while (currentObjectAddress <= lastObjectAddressInCurrentSlab) {
@@ -311,18 +324,43 @@ const char* SlabAllocator::getBufferCacheName(size_t exponent) {
     return bufferCacheName;
 }
 
-int SlabAllocator::deallocateFreeSlabsList(kmem_cache_t* cache) {
+int SlabAllocator::destroySlabList(kmem_cache_t* cache, kmem_slab_t*& headOfSlabList) {
     size_t totalNumberOfFreed4KBBlocks = 0;
-    for (kmem_slab_t* currentSlab = cache->headOfFreeSlabsList; currentSlab;) {
+    for (kmem_slab_t* currentSlab = headOfSlabList; currentSlab;) {
         kmem_slab_t* previousSlab = currentSlab;
         currentSlab = currentSlab->nextSlab;
         size_t totalCurrentSlabSizeInBytes = sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab
                 + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
         BuddyAllocator::getInstance().deallocate(previousSlab, static_cast<int>(totalCurrentSlabSizeInBytes));
-        totalNumberOfFreed4KBBlocks += totalCurrentSlabSizeInBytes / BLOCK_SIZE + ((totalCurrentSlabSizeInBytes % BLOCK_SIZE != 0) ? 1 : 0);
+        size_t currentNumberOfFreedBlocks = totalCurrentSlabSizeInBytes / BLOCK_SIZE + ((totalCurrentSlabSizeInBytes % BLOCK_SIZE != 0) ? 1 : 0);
+        totalNumberOfFreed4KBBlocks += currentNumberOfFreedBlocks;
+        cache->cacheSizeInBlocks -= currentNumberOfFreedBlocks;
+        cache->numberOfSlabs--;
     }
-    cache->headOfFreeSlabsList = nullptr;
+    headOfSlabList = nullptr;
     return static_cast<int>(totalNumberOfFreed4KBBlocks);
+}
+
+void SlabAllocator::destroyAllSlabLists(kmem_cache_t* cache) {
+    destroySlabList(cache, cache->headOfFreeSlabsList);
+    destroySlabList(cache, cache->headOfDirtySlabsList);
+    destroySlabList(cache, cache->headOfFullSlabsList);
+}
+
+void SlabAllocator::removeCacheFromList(kmem_cache_t* cache) {
+    kmem_cache_t* previousCache = nullptr;
+    for (kmem_cache_t* currentCache = headOfCacheList; currentCache; currentCache = currentCache->nextCache) {
+        if (currentCache == cache) {
+            if (previousCache) {
+                previousCache->nextCache = currentCache->nextCache;
+            } else {
+                headOfCacheList = headOfCacheList->nextCache;
+            }
+            currentCache->nextCache = nullptr;
+            return;
+        }
+        previousCache = currentCache;
+    }
 }
 
 int SlabAllocator::getTotalNumberOfFreeSlotsInFreeSlabsList(kmem_cache_t* cache) {
