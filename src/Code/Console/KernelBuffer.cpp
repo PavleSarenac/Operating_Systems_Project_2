@@ -7,7 +7,7 @@ kmem_cache_t* KernelBuffer::kernelBufferCache = nullptr;
 
 void KernelBuffer::slabAllocatorConstructor(void* kernelBufferObject) {
     auto kernelBuffer = static_cast<KernelBuffer*>(kernelBufferObject);
-    kernelBuffer->capacity = 1000;
+    kernelBuffer->capacity = 2000;
     kernelBuffer->head = kernelBuffer->tail = 0;
     kernelBuffer->buffer = nullptr;
     kernelBuffer->spaceAvailable = KernelSemaphore::createSemaphore(kernelBuffer->capacity);
@@ -27,8 +27,9 @@ void KernelBuffer::slabAllocatorDestructor(void* kernelBufferObject) {
 
 KernelBuffer* KernelBuffer::putcGetInstance() {
     if (!putcKernelBufferHandle) {
-        KernelBuffer::kernelBufferCache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer),
-                                                            &slabAllocatorConstructor, &slabAllocatorDestructor);
+        if (!KernelBuffer::kernelBufferCache)
+            KernelBuffer::kernelBufferCache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer),
+                                                                &slabAllocatorConstructor, &slabAllocatorDestructor);
         putcKernelBufferHandle = new KernelBuffer;
         putcKernelBufferHandle->buffer = static_cast<int*>(kmalloc(putcKernelBufferHandle->capacity * sizeof(int)));
         return putcKernelBufferHandle;
@@ -39,8 +40,9 @@ KernelBuffer* KernelBuffer::putcGetInstance() {
 
 KernelBuffer* KernelBuffer::getcGetInstance() {
     if (!getcKernelBufferHandle) {
-        KernelBuffer::kernelBufferCache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer),
-                                                            &slabAllocatorConstructor, &slabAllocatorDestructor);
+        if (!KernelBuffer::kernelBufferCache)
+            KernelBuffer::kernelBufferCache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer),
+                                                                &slabAllocatorConstructor, &slabAllocatorDestructor);
         getcKernelBufferHandle = new KernelBuffer;
         getcKernelBufferHandle->buffer = static_cast<int*>(kmalloc(getcKernelBufferHandle->capacity * sizeof(int)));
         return getcKernelBufferHandle;

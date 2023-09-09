@@ -63,8 +63,10 @@ public:
         printString("\n");
         kmem_cache_t* cache = kmem_cache_create("KernelBuffer", sizeof(KernelBuffer), nullptr, nullptr);
         kmem_cache_info(cache);
-        kmem_cache_t* cache2 = kmem_cache_create("size-12", (1 << 14), nullptr, nullptr);
+        kmem_cache_t* cache2 = kmem_cache_create("size-13", (1 << 13), nullptr, nullptr);
         kmem_cache_info(cache2);
+        kmem_cache_t* cache3 = kmem_cache_create("KernelSemaphore", 24, nullptr, nullptr);
+        kmem_cache_info(cache3);
 
         finished = true;
     }
