@@ -57,9 +57,9 @@ CFLAGS += -fno-pie -nopie
 endif
 
 CXXFLAGS  = -Wall -Og -ggdb
-CXXFLAGS += -nostdlib -std=c++11
+CXXFLAGS += -nostdlib -std=c++11 -fcheck-new
 CXXFLAGS += -march=rv64ima -mabi=lp64 -mcmodel=medany -mno-relax
-CXXFLAGS += -fno-omit-frame-pointer -ffreestanding -fno-common -fcheck-new
+CXXFLAGS += -fno-omit-frame-pointer -ffreestanding -fno-common
 CXXFLAGS += -fno-rtti -fno-threadsafe-statics
 #CXXFLAGS += -I./${DIR_LIBS} -I./${DIR_INC}
 CXXFLAGS += $(shell ${CXX} -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)

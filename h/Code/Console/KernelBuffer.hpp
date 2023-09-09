@@ -3,16 +3,12 @@
 
 #include "../Semaphore/KernelSemaphore.hpp"
 #include "../SystemCalls/syscall_cpp.hpp"
-#include "../../../h/Code/MemoryAllocator/slab.hpp"
 
 class KernelBuffer {
 public:
     static KernelBuffer* putcGetInstance();
     static KernelBuffer* getcGetInstance();
-    static kmem_cache_t* kernelBufferCache;
-    static void slabAllocatorConstructor(void* kernelBufferObject);
-    static void slabAllocatorDestructor(void* kernelBufferObject);
-    ~KernelBuffer() = default;
+    ~KernelBuffer();
 
     void insertIntoBuffer(int value);
     int removeFromBuffer();
@@ -25,7 +21,7 @@ public:
     static void operator delete[](void* ptr);
 
 private:
-    KernelBuffer() = default;
+    KernelBuffer();
     static KernelBuffer* putcKernelBufferHandle;
     static KernelBuffer* getcKernelBufferHandle;
 

@@ -131,3 +131,21 @@ int MemoryAllocator::insertAfterPreviousFreeSegment(FreeSegment* newFreeSegment,
     else freeListHead = newFreeSegment;
     return 0;
 }
+
+size_t MemoryAllocator::getTotalNumberOfFreeBytes() {
+    size_t totalNumberOfFreeBytes = 0;
+    for (FreeSegment* freeSegment = freeListHead; freeSegment; freeSegment = freeSegment->next) {
+        totalNumberOfFreeBytes += freeSegment->numberOfBlocks * MEM_BLOCK_SIZE;
+    }
+    return totalNumberOfFreeBytes;
+}
+
+size_t MemoryAllocator::getNumberOfBytesInLargestFreeSegment() {
+    size_t largestNumberOfBytes = 0;
+    for (FreeSegment* freeSegment = freeListHead; freeSegment; freeSegment = freeSegment->next) {
+        if (freeSegment->numberOfBlocks * MEM_BLOCK_SIZE > largestNumberOfBytes) {
+            largestNumberOfBytes = freeSegment->numberOfBlocks * MEM_BLOCK_SIZE;
+        }
+    }
+    return largestNumberOfBytes;
+}

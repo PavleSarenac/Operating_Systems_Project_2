@@ -2,6 +2,7 @@
 #include "../../../h/Code/SystemCalls/syscall_cpp.hpp"
 #include "../../../h/Testing/Testing_OS1/Printing.hpp"
 #include "../../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
+#include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
 
 struct thread_data {
     int id;
@@ -14,6 +15,10 @@ public:
         printString("Started thread id:");
         printSizet(id);
         printString("\n");
+
+        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+        printString("\n");
+        MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
 
         ForkThread* thread = new ForkThread(id + 1);
         ForkThread** threads = (ForkThread** ) mem_alloc(sizeof(ForkThread*) * id);
@@ -50,6 +55,10 @@ public:
         printString("Finished thread id:");
         printSizet(id);
         printString("\n");
+
+        MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+        printString("\n");
+        MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
 
         finished = true;
     }

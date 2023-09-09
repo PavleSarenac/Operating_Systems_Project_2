@@ -88,31 +88,7 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     printSizet(cache->cacheSizeInBlocks ? cache->cacheSizeInBlocks/cache->numberOfSlabs : 0);
     printString("\n");
     printString("--------------------------------Other info---------------------------------\n");
-    printString("Heap start address: 0x");
-    printSizet(reinterpret_cast<size_t>(HEAP_START_ADDR), 16); printString("\n");
-    printString("Heap end address: 0x");
-    printSizet(reinterpret_cast<size_t>(HEAP_END_ADDR), 16); printString("\n");
-    printString("BuddyAllocator first address: 0x");
-    printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator(), 16); printString("\n");
-    printString("BuddyAllocator last address: 0x");
-    printSizet(MemoryAllocationHelperFunctions::getLastAvailableAddressForBuddyAllocator(), 16); printString("\n");
-    printString("FirstFitAllocator first address: 0x");
-    printSizet(MemoryAllocationHelperFunctions::getFirstAlignedAddressForFirstFitAllocator(), 16); printString("\n");
-    printString("BuddyAllocator total number of initially assigned bytes: ");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfBytesAssignedToBuddyAllocator()); printString("B\n");
-    printString("BuddyAllocator total number of initially assigned 4KB blocks: ");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOf4KBMemoryBlocksAssignedToBuddyAllocator()); printString("\n");
-    printString("BuddyAllocator total number of actually assigned bytes: ");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator()); printString("B\n");
-    printString("BuddyAllocator total number of actually assigned 4KB blocks: ");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()); printString("\n");
-    printString("BuddyAllocator percent of used bytes: ");
-    printSizet(BuddyAllocator::getInstance().getNumberOfAllocatedBytes()); printString("B/");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedBytesForBuddyAllocator()); printString("B\n");
-    printString("BuddyAllocator percent of used 4KB blocks: ");
-    printSizet(BuddyAllocator::getInstance().getNumberOfUsedBlocks()); printString("/");
-    printSizet(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator()); printString("\n");
-    printString("\n");
+    MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
 }
 
 kmem_cache_t* SlabAllocator::findExistingCache(const char* cacheName) {

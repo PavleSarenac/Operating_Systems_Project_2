@@ -36,11 +36,14 @@ void userMain(void* arg) {
 
     // Moji testovi
     //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
-    SlabAllocatorTest::runTests();  // test SlabAllocator klase (prosao)
+    //SlabAllocatorTest::runTests();  // test SlabAllocator klase (prosao)
 
     // Javni testovi
     //userMainSlabAllocatorOfficialExplicitTest();  // (prosao)
-    //userMainSlabAllocatorOfficialImplicitTest();
+    userMainSlabAllocatorOfficialImplicitTest();
+
+    //MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
+    //MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa

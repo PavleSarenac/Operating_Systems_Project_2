@@ -10,6 +10,8 @@ public:
     void operator=(const MemoryAllocator&) = delete;
     void* allocateSegment(size_t numberOfRequestedBlocks);
     int deallocateSegment(void* memorySegmentForDealloaction);
+    size_t getTotalNumberOfFreeBytes();
+    size_t getNumberOfBytesInLargestFreeSegment();
 private:
     typedef struct FreeSegment {
         size_t numberOfBlocks;

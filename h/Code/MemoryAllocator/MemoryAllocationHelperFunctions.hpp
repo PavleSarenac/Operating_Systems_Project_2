@@ -14,6 +14,8 @@ namespace MemoryAllocationHelperFunctions {
     size_t getFirstAlignedAddressForFirstFitAllocator();
     size_t getTotalNumberOf8BMemoryBlocksForFirstFitAllocator();
     size_t getExponentForNumberOfBytes(size_t numberOfBytes);
+    void printBuddyAllocatorInfo();
+    void printFirstFitAllocatorInfo();
     void initializeBuddyAllocator();
 }
 
