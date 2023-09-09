@@ -2,13 +2,15 @@
 #define SEMAPHORE_HPP
 
 #include "../Thread/TCB.hpp"
+#include "../MemoryAllocator/slab.hpp"
 
 class KernelSemaphore {
 public:
     static void slabAllocatorConstructor(void* kernelSemaphoreObject);
     static void slabAllocatorDestructor(void* kernelSemaphoreObject);
+    static kmem_cache_t* kernelSemaphoreCache;
 
-    ~KernelSemaphore();
+    ~KernelSemaphore() = default;
     static KernelSemaphore* createSemaphore(unsigned short initialSemaphoreValue = 1);
     static int closeSemaphore(KernelSemaphore* semaphore);
 
@@ -31,14 +33,14 @@ protected:
     TCB* unblockFirstThreadInList();
 
 private:
-    explicit KernelSemaphore(unsigned short initialSemaphoreValue = 1) : semaphoreValue(initialSemaphoreValue) {}
+    KernelSemaphore() = default;
 
     void insertThreadIntoBlockedList(TCB* tcb);
     TCB* removeThreadFromBlockedList();
 
     int semaphoreValue;
-    TCB* blockedThreadsHead = nullptr;
-    TCB* blockedThreadsTail = nullptr;
+    TCB* blockedThreadsHead;
+    TCB* blockedThreadsTail;
 };
 
 #endif

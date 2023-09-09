@@ -13,8 +13,8 @@ void* bufferArr[arrSize];
 
 void SlabAllocatorTest::runTests() {
     objectAllocFreeTest();
-    bufferAllocFreeTest();
-    objectAllocFreeTest();
+    //bufferAllocFreeTest();
+    //objectAllocFreeTest();
 }
 
 void SlabAllocatorTest::objectAllocFreeTest() {

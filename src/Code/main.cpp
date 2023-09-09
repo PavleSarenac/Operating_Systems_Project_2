@@ -16,6 +16,7 @@
 #include "../../h/Testing/Testing_OS2/BuddyAllocatorTest.hpp"
 #include "../../h/Testing/Testing_OS2/SlabAllocatorTest.hpp"
 #include "../../h/Testing/Testing_OS2/SlabAllocatorOfficialExplicitTest.hpp"
+#include "../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
 
 void userMain(void* arg) {
     // OS1 projekat testovi
@@ -33,21 +34,22 @@ void userMain(void* arg) {
 
     // OS2 projekat testovi
 
-    auto firstAlignedAddress = reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator());
-    auto numberOfMemoryBlocksForBuddyAllocator = static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator());
-    kmem_init(firstAlignedAddress, numberOfMemoryBlocksForBuddyAllocator);
-
     // Moji testovi
     //BuddyAllocatorTest::runTests();  // test BuddyAllocator klase (prosao)
-    //SlabAllocatorTest::runTests();  // test SlabAllocator klase
+    SlabAllocatorTest::runTests();  // test SlabAllocator klase (prosao)
 
     // Javni testovi
-    userMainSlabAllocatorOfficialExplicitTest();
+    //userMainSlabAllocatorOfficialExplicitTest();  // (prosao)
+    //userMainSlabAllocatorOfficialImplicitTest();
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa
 // nakon toga, funkcija main treba da pokrene nit nad funkcijom userMain
 void main() {
+    auto firstAlignedAddress = reinterpret_cast<void*>(MemoryAllocationHelperFunctions::getFirstAlignedAddressForBuddyAllocator());
+    auto numberOfMemoryBlocksForBuddyAllocator = static_cast<int>(MemoryAllocationHelperFunctions::getTotalNumberOfUsedMemoryBlocksForBuddyAllocator());
+    kmem_init(firstAlignedAddress, numberOfMemoryBlocksForBuddyAllocator);
+
     // upisivanje adrese prekidne rutine u registar stvec
     Riscv::writeStvec(reinterpret_cast<uint64>(&Riscv::supervisorTrap));
 

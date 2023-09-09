@@ -37,11 +37,11 @@ void Riscv::handleSupervisorTrap() {
         if (sysCallCode == 0x01) {
             // sistemski poziv: mem_alloc
 
-            size_t volatile numberOfBlocks; // broj blokova memorije koje je korisnik zatrazio - citamo iz registra a1
-            __asm__ volatile ("ld %[numberOfBlocks],8(sp)" : [numberOfBlocks] "=r"(numberOfBlocks));
+            size_t volatile numberOfBytes; // broj bajtova memorije koje je korisnik zatrazio - citamo iz registra a1
+            __asm__ volatile ("ld %[numberOfBlocks],8(sp)" : [numberOfBlocks] "=r"(numberOfBytes));
 
             // izvrsavamo kernel kod - alociramo memoriju koju je korisnik trazio i upisujemo njenu adresu u pokazivac allocatedMemory
-            void* allocatedMemory = MemoryAllocator::getInstance().allocateSegment(numberOfBlocks);
+            void* allocatedMemory = kmalloc(numberOfBytes);
 
             // upisujemo adresu te memorije u registar a0 kao povratnu vrednost ovog sistemskog poziva
             __asm__ volatile ("mv a0,%[allocatedMemory]" : : [allocatedMemory] "r"(allocatedMemory));
@@ -53,7 +53,8 @@ void Riscv::handleSupervisorTrap() {
             __asm__ volatile ("ld %[freeThisMemory],8(sp)" : [freeThisMemory] "=r"(freeThisMemory));
 
             // izvrsavamo kernel kod - dealociramo memoriju koju je korisnik prosledio i rezultat ove operacije upisujemo u promenljivu successInfo
-            int successInfo = MemoryAllocator::getInstance().deallocateSegment(freeThisMemory);
+            kfree(freeThisMemory);
+            int successInfo = 0;
 
             // upisujemo informaciju o uspehu ove operacije u registar a0 kao povratnu vrednost ovog sistemskog poziva
             __asm__ volatile ("mv a0,%[successInfo]" : : [successInfo] "r"(successInfo));

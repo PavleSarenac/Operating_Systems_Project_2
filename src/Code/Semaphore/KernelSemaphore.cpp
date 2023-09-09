@@ -1,23 +1,26 @@
 #include "../../../h/Code/Semaphore/KernelSemaphore.hpp"
 #include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 
-void KernelSemaphore::slabAllocatorConstructor(void *kernelSemaphoreObject) {
-    auto kernelSemaphore = reinterpret_cast<KernelSemaphore*>(kernelSemaphoreObject);
+kmem_cache_t* KernelSemaphore::kernelSemaphoreCache = nullptr;
+
+void KernelSemaphore::slabAllocatorConstructor(void* kernelSemaphoreObject) {
+    auto kernelSemaphore = static_cast<KernelSemaphore*>(kernelSemaphoreObject);
     kernelSemaphore->semaphoreValue = 1;
     kernelSemaphore->blockedThreadsHead = nullptr;
     kernelSemaphore->blockedThreadsTail = nullptr;
 }
 
-void KernelSemaphore::slabAllocatorDestructor(void *kernelSemaphoreObject) {
-    KernelSemaphore::closeSemaphore(reinterpret_cast<KernelSemaphore*>(kernelSemaphoreObject));
-}
-
-KernelSemaphore::~KernelSemaphore() {
-    KernelSemaphore::closeSemaphore(this);
+void KernelSemaphore::slabAllocatorDestructor(void* kernelSemaphoreObject) {
+    auto kernelSemaphore = static_cast<KernelSemaphore*>(kernelSemaphoreObject);
+    KernelSemaphore::closeSemaphore(kernelSemaphore);
 }
 
 KernelSemaphore* KernelSemaphore::createSemaphore(unsigned short initialSemaphoreValue) {
-    return new KernelSemaphore(initialSemaphoreValue);
+    KernelSemaphore::kernelSemaphoreCache = kmem_cache_create("KernelSemaphore", sizeof(KernelSemaphore),
+                                                              &slabAllocatorConstructor, &slabAllocatorDestructor);
+    auto newSemaphore = new KernelSemaphore;
+    newSemaphore->semaphoreValue = initialSemaphoreValue;
+    return newSemaphore;
 }
 
 int KernelSemaphore::closeSemaphore(KernelSemaphore *semaphore) {
@@ -31,7 +34,7 @@ int KernelSemaphore::closeSemaphore(KernelSemaphore *semaphore) {
 
 void KernelSemaphore::wait() {
     if (--semaphoreValue < 0) {
-       blockCurrentThread();
+        blockCurrentThread();
     }
 }
 
@@ -42,21 +45,19 @@ void KernelSemaphore::signal() {
 }
 
 void* KernelSemaphore::operator new(size_t n) {
-    void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
-    return ptr;
+    return kmem_cache_alloc(kernelSemaphoreCache);
 }
 
 void* KernelSemaphore::operator new[](size_t n) {
-    void* ptr = MemoryAllocator::getInstance().allocateSegment(n);
-    return ptr;
+    return kmem_cache_alloc(kernelSemaphoreCache);
 }
 
 void KernelSemaphore::operator delete(void *ptr) {
-    MemoryAllocator::getInstance().deallocateSegment(ptr);
+    kmem_cache_free(kernelSemaphoreCache, ptr);
 }
 
 void KernelSemaphore::operator delete[](void *ptr) {
-    MemoryAllocator::getInstance().deallocateSegment(ptr);
+    kmem_cache_free(kernelSemaphoreCache, ptr);
 }
 
 void KernelSemaphore::blockCurrentThread() {

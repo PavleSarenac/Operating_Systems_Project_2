@@ -134,6 +134,7 @@ bool SlabAllocator::areCacheNamesEqual(const char existingCacheName[MAX_CACHE_NA
 
 kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const char *cacheName, size_t objectSizeInBytes,
                                                 void (*objectConstructor)(void *), void (*objectDestructor)(void *)) {
+    if (newCache == nullptr) return newCache;
     for (int i = 0; ; i++) {
         newCache->cacheName[i] = cacheName[i];
         if (cacheName[i] == '\0') break;
