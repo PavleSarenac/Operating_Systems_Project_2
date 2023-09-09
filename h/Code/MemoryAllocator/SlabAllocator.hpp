@@ -14,12 +14,12 @@ public:
     void operator=(const SlabAllocator&) = delete;
     static kmem_cache_t* createCache(const char* cacheName, size_t objectSizeInBytes,
                               void (*objectConstructor)(void*), void (*objectDestructor)(void*));
+    static int shrinkCache(kmem_cache_t* cache);
     static void* allocateObject(kmem_cache_t* cache);
     static void deallocateObject(kmem_cache_t* cache, void* objectPointer);
     static void* allocateBuffer(size_t bufferSizeInBytes);
     static void deallocateBuffer(const void* bufferPointer);
     static void printCacheInfo(kmem_cache_t* cache);
-    static const char* getBufferCacheName(size_t exponent);
 private:
     static kmem_cache_t* findExistingCache(const char* cacheName);
     static kmem_cache_t* initializeNewCache(kmem_cache_t* newCache, const char* cacheName, size_t objectSizeInBytes,
@@ -48,7 +48,8 @@ private:
     static bool deallocateObjectInSlabList(kmem_cache_t* cache, kmem_slab_t* headOfSlabList, void* objectPointer);
     static size_t getFirstObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
     static size_t getLastObjectAddressInSlab(kmem_cache_t* cache, kmem_slab_t* slab);
-
+    static const char* getBufferCacheName(size_t exponent);
+    static int deallocateFreeSlabsList(kmem_cache_t* cache);
 };
 
 #endif

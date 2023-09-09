@@ -11,6 +11,11 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size, void (*ctor)(void
     return SlabAllocator::createCache(name, size, ctor, dtor);
 }
 
+int kmem_cache_shrink(kmem_cache_t *cachep) {
+    if (cachep == nullptr) return 0;
+    return SlabAllocator::shrinkCache(cachep);
+}
+
 void *kmem_cache_alloc(kmem_cache_t *cachep) {
     if (!cachep) return nullptr;
     return SlabAllocator::allocateObject(cachep);

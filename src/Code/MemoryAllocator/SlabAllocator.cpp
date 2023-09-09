@@ -15,6 +15,14 @@ kmem_cache_t* SlabAllocator::createCache(const char *cacheName, size_t objectSiz
     return initializeNewCache(newCache, cacheName, objectSizeInBytes, objectConstructor, objectDestructor);
 }
 
+int SlabAllocator::shrinkCache(kmem_cache_t* cache) {
+    if (cache->didCacheGrowSinceLastShrink) {
+        cache->didCacheGrowSinceLastShrink = false;
+        return 0;
+    }
+    return deallocateFreeSlabsList(cache);
+}
+
 void* SlabAllocator::allocateObject(kmem_cache_t* cache) {
     kmem_slab_t* slab = getSlabWithFreeObject(cache);
     return getObjectFromSlab(cache, slab);
@@ -122,6 +130,7 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
         newCache->cacheName[i] = cacheName[i];
         if (cacheName[i] == '\0') break;
     }
+    newCache->didCacheGrowSinceLastShrink = false;
     newCache->objectSizeInBytes = objectSizeInBytes;
     newCache->cacheSizeInBlocks = 0;
     newCache->numberOfSlabs = 0;
@@ -153,6 +162,7 @@ kmem_slab_t* SlabAllocator::getSlabWithFreeObject(kmem_cache_t* cache) {
         slab = cache->headOfFreeSlabsList;
     } else {
         slab = allocateNewFreeSlab(cache);
+        cache->didCacheGrowSinceLastShrink = true;
     }
     return slab;
 }
@@ -299,6 +309,20 @@ const char* SlabAllocator::getBufferCacheName(size_t exponent) {
         bufferCacheName[bufferCacheNamePosition++] = reverseExponentString[reverseExponentStringPosition];
     bufferCacheName[bufferCacheNamePosition] = '\0';
     return bufferCacheName;
+}
+
+int SlabAllocator::deallocateFreeSlabsList(kmem_cache_t* cache) {
+    size_t totalNumberOfFreed4KBBlocks = 0;
+    for (kmem_slab_t* currentSlab = cache->headOfFreeSlabsList; currentSlab;) {
+        kmem_slab_t* previousSlab = currentSlab;
+        currentSlab = currentSlab->nextSlab;
+        size_t totalCurrentSlabSizeInBytes = sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab
+                + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
+        BuddyAllocator::getInstance().deallocate(previousSlab, static_cast<int>(totalCurrentSlabSizeInBytes));
+        totalNumberOfFreed4KBBlocks += totalCurrentSlabSizeInBytes / BLOCK_SIZE + ((totalCurrentSlabSizeInBytes % BLOCK_SIZE != 0) ? 1 : 0);
+    }
+    cache->headOfFreeSlabsList = nullptr;
+    return static_cast<int>(totalNumberOfFreed4KBBlocks);
 }
 
 int SlabAllocator::getTotalNumberOfFreeSlotsInFreeSlabsList(kmem_cache_t* cache) {

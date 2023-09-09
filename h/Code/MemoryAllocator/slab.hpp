@@ -13,6 +13,7 @@ typedef struct kmem_slab_s {
 } kmem_slab_t;
 typedef struct kmem_cache_s {
     char cacheName[MAX_CACHE_NAME_LENGTH];
+    bool didCacheGrowSinceLastShrink;
     size_t objectSizeInBytes;
     size_t cacheSizeInBlocks;
     size_t numberOfSlabs;

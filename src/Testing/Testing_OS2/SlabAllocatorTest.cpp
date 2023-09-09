@@ -35,12 +35,17 @@ void SlabAllocatorTest::objectAllocFreeTest() {
 
 void SlabAllocatorTest::bufferAllocFreeTest() {
     for (int i = 0; i < arrSize; i++) {
-        bufferArr[i] = kmalloc(25);
+        bufferArr[i] = kmalloc(150);
     }
-    kmem_cache_t* bufferSize5 = kmem_cache_create("size-5", 1, nullptr, nullptr);
+    kmem_cache_t* bufferSize5 = kmem_cache_create("size-8", 1, nullptr, nullptr);
     kmem_cache_info(bufferSize5);
     for (int i = 0; i < arrSize; i++) {
         kfree(bufferArr[i]);
     }
+    kmem_cache_info(bufferSize5);
+    printInt(kmem_cache_shrink(bufferSize5));
+    printString("\n");
+    printInt(kmem_cache_shrink(bufferSize5));
+    printString("\n");
     kmem_cache_info(bufferSize5);
 }
