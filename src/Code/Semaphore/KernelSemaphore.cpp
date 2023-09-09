@@ -1,5 +1,4 @@
 #include "../../../h/Code/Semaphore/KernelSemaphore.hpp"
-#include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 
 kmem_cache_t* KernelSemaphore::kernelSemaphoreCache = nullptr;
 

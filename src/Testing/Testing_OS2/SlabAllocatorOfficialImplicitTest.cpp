@@ -2,8 +2,6 @@
 #include "../../../h/Code/SystemCalls/syscall_cpp.hpp"
 #include "../../../h/Testing/Testing_OS1/Printing.hpp"
 #include "../../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
-#include "../../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
-#include "../../../h/Code/MemoryAllocator/SlabAllocator.hpp"
 
 struct thread_data {
     int id;

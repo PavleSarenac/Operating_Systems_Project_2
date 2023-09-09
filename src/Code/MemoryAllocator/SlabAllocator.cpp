@@ -62,7 +62,7 @@ void SlabAllocator::deallocateBuffer(const void* bufferPointer) {
 void SlabAllocator::destroyCache(kmem_cache_t* cache) {
     destroyAllSlabLists(cache);
     removeCacheFromList(cache);
-    BuddyAllocator::getInstance().deallocate(cache, BLOCK_SIZE);
+    BuddyAllocator::getInstance().deallocate(cache, sizeof(kmem_cache_t));
 }
 
 void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {

@@ -2,7 +2,6 @@
 #include "../../h/Code/Thread/TCB.hpp"
 #include "../../h/Code/Console/KernelThreadFunctions.hpp"
 #include "../../h/Code/Console/KernelBuffer.hpp"
-#include "../../h/Code/MemoryAllocator/slab.hpp"
 #include "../../h/Code/MemoryAllocator/MemoryAllocationHelperFunctions.hpp"
 
 #include "../../h/Testing/Testing_OS1/Threads_C_API_Test.hpp"
@@ -13,8 +12,6 @@
 #include "../../h/Testing/Testing_OS1/Consumer_Producer_CPP_API_Test.hpp"
 #include "../../h/Testing/Testing_OS1/Periodic_Threads_CPP_API_Test.hpp"
 
-#include "../../h/Testing/Testing_OS2/BuddyAllocatorTest.hpp"
-#include "../../h/Testing/Testing_OS2/SlabAllocatorTest.hpp"
 #include "../../h/Testing/Testing_OS2/SlabAllocatorOfficialExplicitTest.hpp"
 #include "../../h/Testing/Testing_OS2/SlabAllocatorOfficialImplicitTest.hpp"
 
@@ -36,10 +33,7 @@ void userMain(void* arg) {
 
     // Javni testovi
     //userMainSlabAllocatorOfficialExplicitTest();  // (prosao)
-    userMainSlabAllocatorOfficialImplicitTest();
-
-    //MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
-    //MemoryAllocationHelperFunctions::printFirstFitAllocatorInfo();
+    //userMainSlabAllocatorOfficialImplicitTest();  // (prosao)
 }
 
 // funkcija main je u nadleznosti jezgra - jezgro ima kontrolu onda nad radnjama koje ce se izvrsiti pri pokretanju programa

@@ -1,5 +1,4 @@
 #include "../../../h/Code/Console/KernelBuffer.hpp"
-#include "../../../h/Code/MemoryAllocator/MemoryAllocator.hpp"
 
 KernelBuffer* KernelBuffer::putcKernelBufferHandle = nullptr;
 KernelBuffer* KernelBuffer::getcKernelBufferHandle = nullptr;
