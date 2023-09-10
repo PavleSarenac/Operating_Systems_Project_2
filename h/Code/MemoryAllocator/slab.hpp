@@ -25,6 +25,7 @@ typedef struct kmem_cache_s {
     kmem_slab_t* headOfDirtySlabsList;
     kmem_slab_t* headOfFullSlabsList;
     kmem_cache_s* nextCache;
+    const char* cacheError;
 } kmem_cache_t;
 
 void kmem_init(void *space, int block_num);

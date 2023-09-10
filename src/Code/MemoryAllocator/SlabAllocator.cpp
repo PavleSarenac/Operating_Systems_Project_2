@@ -32,7 +32,9 @@ void* SlabAllocator::allocateObject(kmem_cache_t* cache) {
 
 void SlabAllocator::deallocateObject(kmem_cache_t* cache, void* objectPointer) {
     if (deallocateObjectInSlabList(cache, cache->headOfDirtySlabsList, objectPointer)) return;
-    deallocateObjectInSlabList(cache, cache->headOfFullSlabsList, objectPointer);
+    if (!deallocateObjectInSlabList(cache, cache->headOfFullSlabsList, objectPointer)) {
+        cache->cacheError = "Deallocation of an object with invalid address was attempted.\n";
+    }
 }
 
 void* SlabAllocator::allocateBuffer(size_t bufferSizeInBytes) {
@@ -91,6 +93,21 @@ void SlabAllocator::printCacheInfo(kmem_cache_t* cache) {
     MemoryAllocationHelperFunctions::printBuddyAllocatorInfo();
 }
 
+int SlabAllocator::printCacheError(kmem_cache_t* cache) {
+    if (!cache->cacheError) {
+        printString("\nThere has been no error with cache '");
+        printString(cache->cacheName);
+        printString("'.\n\n");
+        return 0;
+    }
+    printString("\nThere has been an error with cache '");
+    printString(cache->cacheName);
+    printString("':\n");
+    printString(cache->cacheError);
+    printString("\n");
+    return -1;
+}
+
 kmem_cache_t* SlabAllocator::findExistingCache(const char* cacheName) {
     for (kmem_cache_t* currentCache = headOfCacheList; currentCache; currentCache = currentCache->nextCache)
         if (areCacheNamesEqual(currentCache->cacheName, cacheName)) return currentCache;
@@ -127,6 +144,7 @@ kmem_cache_t* SlabAllocator::initializeNewCache(kmem_cache_t *newCache, const ch
     newCache->headOfDirtySlabsList = nullptr;
     newCache->headOfFullSlabsList = nullptr;
     newCache->nextCache = headOfCacheList;
+    newCache->cacheError = nullptr;
     headOfCacheList = newCache;
     return newCache;
 }
@@ -157,7 +175,10 @@ kmem_slab_t* SlabAllocator::allocateNewFreeSlab(kmem_cache_t* cache) {
     size_t totalSlabSizeInBytes = sizeof(kmem_slab_t) + sizeof(int) * cache->numberOfObjectsInOneSlab
                                   + cache->numberOfObjectsInOneSlab * cache->objectSizeInBytes;
     auto newFreeSlab = static_cast<kmem_slab_t*>(BuddyAllocator::getInstance().allocate(totalSlabSizeInBytes));
-    if (newFreeSlab == nullptr) return newFreeSlab;
+    if (newFreeSlab == nullptr) {
+        cache->cacheError = "There is no space in memory for another slab for this cache.\n";
+        return newFreeSlab;
+    }
     cache->cacheSizeInBlocks += (1 << BuddyAllocator::getExponentForNumberOfBytes(totalSlabSizeInBytes));
     cache->numberOfSlabs++;
     return initializeNewFreeSlab(cache, newFreeSlab);

@@ -21,6 +21,7 @@ public:
     static void deallocateBuffer(const void* bufferPointer);
     static void destroyCache(kmem_cache_t* cache);
     static void printCacheInfo(kmem_cache_t* cache);
+    static int printCacheError(kmem_cache_t* cache);
     static void printAllCacheInfo();
 private:
     static kmem_cache_t* findExistingCache(const char* cacheName);
